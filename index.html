@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wolverines PE Gradebook</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --paper:#FBF8F1; --panel:#FFFFFF; --panel-alt:#F1EAD8; --ink:#201C14; --ink-soft:#645A46;
+    --border:#E3DAC5; --gold:#B5871F; --gold-deep:#8C6B14; --gold-soft:#F1E3BC;
+    --black-panel:#171410; --on-black:#F5EFDD; --on-black-soft:#C9BFA6;
+    --lvl0-bg:#EDE6D3; --lvl0-fg:#8A8064;
+    --lvl1:#A8453A; --lvl2:#AD6C1F; --lvl3:#3E7A4D; --lvl4:#2D6A8A;
+    --shadow:0 1px 2px rgba(32,28,20,.07), 0 10px 28px -14px rgba(32,28,20,.28);
+    --radius-sm:6px; --radius-md:10px; --radius-lg:18px;
+    --font-display:'Oswald',sans-serif; --font-body:'Public Sans',sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#151209; --panel:#221D14; --panel-alt:#2B2418; --ink:#F1EADB; --ink-soft:#C2B79E;
+      --border:#3B331F; --gold:#E0B23B; --gold-deep:#F0C763; --gold-soft:#3A2E14;
+      --black-panel:#0C0A07; --on-black:#F1EADB; --on-black-soft:#B8AC90;
+      --lvl0-bg:#332C1D; --lvl0-fg:#9C927A;
+      --lvl1:#C85A4A; --lvl2:#C4841F; --lvl3:#4C9463; --lvl4:#3E86AC;
+      --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 28px -14px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#151209; --panel:#221D14; --panel-alt:#2B2418; --ink:#F1EADB; --ink-soft:#C2B79E;
+    --border:#3B331F; --gold:#E0B23B; --gold-deep:#F0C763; --gold-soft:#3A2E14;
+    --black-panel:#0C0A07; --on-black:#F1EADB; --on-black-soft:#B8AC90;
+    --lvl0-bg:#332C1D; --lvl0-fg:#9C927A;
+    --lvl1:#C85A4A; --lvl2:#C4841F; --lvl3:#4C9463; --lvl4:#3E86AC;
+    --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 28px -14px rgba(0,0,0,.7);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0; padding:0; height:100%;}
+  body{background:var(--paper); color:var(--ink); font-family:var(--font-body); line-height:1.45;}
+  h1,h2,h3,h4{font-family:var(--font-display); font-weight:600; letter-spacing:.01em; text-wrap:balance; margin:0;}
+  button{font-family:inherit; cursor:pointer;}
+  :focus-visible{outline:2px solid var(--gold-deep); outline-offset:2px;}
+  ::selection{background:var(--gold-soft);}
+  img{max-width:100%;}
+
+  #app{min-height:100%; display:flex; flex-direction:column;}
+
+  /* ---------- Topbar ---------- */
+  .topbar{
+    background:var(--black-panel); color:var(--on-black);
+    display:flex; align-items:center; gap:20px; flex-wrap:wrap;
+    padding:14px 24px; border-bottom:3px solid var(--gold);
+  }
+  .brand{display:flex; align-items:center; gap:12px;}
+  .brand img{width:44px; height:44px; border-radius:50%; box-shadow:0 0 0 2px var(--gold);}
+  .brand-text{display:flex; flex-direction:column; line-height:1.15;}
+  .brand-school{font-family:var(--font-display); font-size:19px; font-weight:700; letter-spacing:.03em; color:var(--gold);}
+  .brand-app{font-size:12.5px; color:var(--on-black-soft); letter-spacing:.03em; text-transform:uppercase;}
+
+  .teacher-switch{display:flex; gap:6px; background:rgba(255,255,255,.06); padding:4px; border-radius:999px;}
+  .teacher-btn{
+    background:transparent; border:none; color:var(--on-black-soft); padding:7px 16px;
+    border-radius:999px; font-weight:600; font-size:14px; transition:background .15s,color .15s;
+  }
+  .teacher-btn.active{background:var(--gold); color:#171410;}
+  .teacher-btn:not(.active):hover{color:var(--on-black);}
+
+  .topbar-right{display:flex; align-items:center; gap:14px; margin-left:auto;}
+  .date-tag{font-size:13px; color:var(--on-black-soft);}
+  .rubric-btn{
+    background:transparent; border:1px solid rgba(255,255,255,.25); color:var(--on-black);
+    padding:7px 14px; border-radius:999px; font-size:13px; font-weight:600;
+  }
+  .rubric-btn:hover{border-color:var(--gold); color:var(--gold);}
+
+  /* ---------- Period tabs ---------- */
+  .period-tabs{
+    display:flex; gap:6px; padding:12px 24px 0; background:var(--paper);
+    border-bottom:1px solid var(--border); flex-wrap:wrap;
+  }
+  .period-tab{
+    background:var(--panel); border:1px solid var(--border); border-bottom:none;
+    padding:9px 20px; border-radius:10px 10px 0 0; font-weight:600; font-size:14.5px;
+    color:var(--ink-soft); position:relative; top:1px;
+  }
+  .period-tab.active{color:var(--ink); background:var(--panel); border-color:var(--border);
+    box-shadow:var(--shadow);}
+
+  /* ---------- Content ---------- */
+  .content{flex:1; padding:22px 24px 48px; display:flex; flex-direction:column; gap:22px; max-width:1180px; width:100%; margin:0 auto;}
+
+  .class-summary{
+    background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-lg);
+    box-shadow:var(--shadow); padding:18px 22px; display:flex; flex-direction:column; gap:14px;
+  }
+  .summary-head{display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap;}
+  .summary-head h2{font-size:18px;}
+  .summary-head .muted{font-size:13px;}
+  .meter-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px;}
+  .meter{display:flex; flex-direction:column; gap:6px;}
+  .meter-label{display:flex; justify-content:space-between; font-size:13px; font-weight:600;}
+  .meter-label .std-name{color:var(--ink);}
+  .meter-label .std-stat{color:var(--ink-soft); font-weight:500;}
+  .meter-bar{display:flex; height:12px; border-radius:999px; overflow:hidden; background:var(--lvl0-bg); box-shadow:inset 0 0 0 1px var(--border);}
+  .meter-seg{height:100%;}
+  .meter-legend{display:flex; gap:10px; flex-wrap:wrap; font-size:11.5px; color:var(--ink-soft);}
+  .meter-legend span{display:inline-flex; align-items:center; gap:4px;}
+  .dot{width:8px; height:8px; border-radius:50%; display:inline-block;}
+
+  /* ---------- Roster panel ---------- */
+  .roster-panel{
+    background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-lg);
+    box-shadow:var(--shadow); overflow:hidden;
+  }
+  .roster-toolbar{display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:16px 20px; border-bottom:1px solid var(--border); flex-wrap:wrap;}
+  .roster-toolbar h2{font-size:19px;}
+  .roster-toolbar .sub{font-size:13px; color:var(--ink-soft); font-weight:400; font-family:var(--font-body); display:block; margin-top:2px;}
+  .btn{
+    background:var(--panel-alt); border:1px solid var(--border); color:var(--ink);
+    padding:8px 15px; border-radius:8px; font-weight:600; font-size:13.5px;
+  }
+  .btn:hover{border-color:var(--gold-deep); color:var(--gold-deep);}
+  .btn.primary{background:var(--gold); border-color:var(--gold); color:#171410;}
+  .btn.primary:hover{filter:brightness(1.06); color:#171410;}
+  .btn.subtle{background:transparent; border-color:transparent;}
+  .btn.danger{color:var(--lvl1);}
+  .btn.danger:hover{border-color:var(--lvl1);}
+  .btn:disabled{opacity:.5; cursor:not-allowed;}
+
+  .table-scroll{overflow-x:auto;}
+  table.roster-table{width:100%; border-collapse:collapse; min-width:760px;}
+  .roster-table thead th{
+    text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--ink-soft); font-weight:700; padding:10px 14px; border-bottom:1px solid var(--border);
+    background:var(--panel-alt); position:sticky; top:0;
+  }
+  .roster-table td{padding:9px 14px; border-bottom:1px solid var(--border); vertical-align:middle;}
+  .roster-table tbody tr:hover{background:var(--panel-alt);}
+  .col-std{text-align:center;}
+  .col-actions{text-align:right;}
+  .student-link{background:transparent; border:none; color:var(--ink); font-weight:600; font-size:14.5px; padding:2px 0; text-align:left;}
+  .student-link:hover{color:var(--gold-deep); text-decoration:underline;}
+  .tag-demo{
+    display:inline-block; margin-left:8px; font-size:10px; font-weight:700; letter-spacing:.03em;
+    color:var(--ink-soft); background:var(--panel-alt); border:1px solid var(--border);
+    padding:1px 6px; border-radius:999px; text-transform:uppercase; vertical-align:middle;
+  }
+  select.grade-select{
+    background:var(--panel); border:1px solid var(--border); color:var(--ink);
+    border-radius:6px; padding:4px 6px; font-size:13px; font-family:inherit;
+  }
+  .row-remove{background:transparent; border:none; color:var(--ink-soft); font-size:15px; padding:4px 6px; border-radius:6px;}
+  .row-remove:hover{color:var(--lvl1); background:var(--panel-alt);}
+
+  .pill{
+    display:inline-flex; align-items:center; gap:5px; padding:5px 11px; border-radius:999px;
+    font-size:13px; font-weight:700; color:#fff; border:none; line-height:1;
+    font-variant-numeric:tabular-nums;
+  }
+  .pill.small{padding:3px 8px; font-size:11.5px;}
+  .pill-empty{background:var(--lvl0-bg); color:var(--lvl0-fg); border:1px dashed var(--border); font-weight:600;}
+  .lvl1{background:var(--lvl1);} .lvl2{background:var(--lvl2);} .lvl3{background:var(--lvl3);} .lvl4{background:var(--lvl4);}
+  .pill-btn{transition:transform .1s;}
+  .pill-btn:hover{transform:translateY(-1px);}
+  .std-count{font-size:10.5px; color:var(--ink-soft); display:block; margin-top:3px;}
+
+  .empty-state{padding:40px 20px; text-align:center; color:var(--ink-soft);}
+  .empty-state h3{margin-bottom:6px; color:var(--ink);}
+
+  .banner{
+    margin:0; padding:10px 20px; background:var(--gold-soft); color:var(--gold-deep);
+    font-size:13px; font-weight:600; border-bottom:1px solid var(--border); display:flex;
+    align-items:center; gap:10px; justify-content:space-between; flex-wrap:wrap;
+  }
+
+  /* ---------- Overlay / Drawer ---------- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(20,17,10,.45); display:flex; justify-content:flex-end;
+    z-index:50;
+  }
+  .drawer{
+    width:min(460px,100%); height:100%; background:var(--panel); box-shadow:-12px 0 32px rgba(0,0,0,.25);
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  .drawer.wide{width:min(560px,100%);}
+  .drawer-head{
+    display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+    padding:18px 20px; border-bottom:1px solid var(--border); background:var(--panel-alt);
+  }
+  .drawer-head h2{font-size:19px;}
+  .drawer-head .sub{font-size:13px; color:var(--ink-soft); margin-top:3px; font-family:var(--font-body); font-weight:500;}
+  .drawer-close{background:transparent; border:none; font-size:20px; color:var(--ink-soft); padding:4px 8px; border-radius:8px;}
+  .drawer-close:hover{background:var(--border); color:var(--ink);}
+  .drawer-body{flex:1; overflow-y:auto; padding:18px 20px 40px; display:flex; flex-direction:column; gap:20px;}
+
+  .std-block{border:1px solid var(--border); border-radius:var(--radius-md); padding:14px 16px; display:flex; flex-direction:column; gap:10px;}
+  .std-head-row{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;}
+  .std-head-row .std-num{font-size:11px; font-weight:700; color:var(--gold-deep); text-transform:uppercase; letter-spacing:.04em;}
+  .std-head-row h3{font-size:15.5px;}
+  .std-full{font-size:12.5px; color:var(--ink-soft); margin:0;}
+  .std-current{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-soft);}
+  .level-buttons{display:grid; grid-template-columns:repeat(4,1fr); gap:6px;}
+  .level-btn{
+    border:1px solid var(--border); background:var(--panel); border-radius:8px; padding:7px 4px;
+    font-size:11.5px; font-weight:700; color:#fff; text-align:center; line-height:1.25;
+  }
+  .level-btn span{display:block; font-size:9.5px; font-weight:600; opacity:.9;}
+  .level-btn[data-score="1"]{background:var(--lvl1);}
+  .level-btn[data-score="2"]{background:var(--lvl2);}
+  .level-btn[data-score="3"]{background:var(--lvl3);}
+  .level-btn[data-score="4"]{background:var(--lvl4);}
+  .level-btn:hover{filter:brightness(1.08); transform:translateY(-1px);}
+  .entry-row{display:flex; gap:8px;}
+  .entry-row input[type=text]{flex:1;}
+  input[type=text],input[type=date],textarea{
+    background:var(--panel); border:1px solid var(--border); color:var(--ink); border-radius:7px;
+    padding:7px 10px; font-size:13px; font-family:inherit;
+  }
+  textarea{width:100%; resize:vertical; min-height:70px;}
+  .history-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; max-height:150px; overflow-y:auto;}
+  .history-list li{display:flex; align-items:center; gap:8px; font-size:12.5px; padding:4px 2px; border-bottom:1px dotted var(--border);}
+  .hist-date{color:var(--ink-soft); min-width:72px;}
+  .hist-note{flex:1; color:var(--ink-soft); font-style:italic; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .hist-remove{background:transparent; border:none; color:var(--ink-soft); font-size:13px; padding:2px 5px; border-radius:5px;}
+  .hist-remove:hover{color:var(--lvl1); background:var(--panel-alt);}
+  .no-history{font-size:12px; color:var(--ink-soft); margin:0;}
+
+  .roster-section{display:flex; flex-direction:column; gap:8px;}
+  .roster-section h4{font-size:13px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft);}
+  .roster-add-row{display:flex; gap:8px;}
+  .roster-add-row input{flex:1;}
+  .roster-existing{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:5px; max-height:220px; overflow-y:auto;}
+  .roster-existing li{display:flex; align-items:center; justify-content:space-between; gap:8px; padding:5px 8px; border-radius:7px; font-size:13px;}
+  .roster-existing li:hover{background:var(--panel-alt);}
+
+  .modal-overlay{position:fixed; inset:0; background:rgba(20,17,10,.45); display:flex; align-items:center; justify-content:center; z-index:60; padding:24px;}
+  .modal{background:var(--panel); border-radius:var(--radius-lg); box-shadow:var(--shadow); max-width:720px; width:100%; max-height:85vh; display:flex; flex-direction:column; overflow:hidden;}
+  .modal-head{display:flex; justify-content:space-between; align-items:center; padding:18px 22px; border-bottom:1px solid var(--border); background:var(--panel-alt);}
+  .modal-body{overflow-y:auto; padding:18px 22px; display:flex; flex-direction:column; gap:18px;}
+  .rubric-standard h3{font-size:16.5px; margin-bottom:2px;}
+  .rubric-standard .std-full{margin-bottom:8px;}
+  .rubric-table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  .rubric-table th{text-align:left; padding:6px 8px; background:var(--panel-alt); font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft);}
+  .rubric-table td{padding:7px 8px; border-bottom:1px solid var(--border); vertical-align:top;}
+  .rubric-table td:first-child{white-space:nowrap;}
+
+  .toast{
+    position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:var(--black-panel);
+    color:var(--on-black); padding:11px 20px; border-radius:999px; font-size:13.5px; font-weight:600;
+    box-shadow:var(--shadow); z-index:80; border:1px solid var(--gold);
+  }
+
+  .storage-note{
+    font-size:11.5px; color:var(--on-black-soft); background:rgba(255,255,255,.05);
+    padding:5px 12px; border-radius:999px;
+  }
+
+  /* ---------- Login screen ---------- */
+  .login-screen{
+    min-height:100%; display:flex; align-items:center; justify-content:center;
+    background:var(--black-panel); padding:24px;
+  }
+  .login-card{
+    background:var(--panel); border-radius:var(--radius-lg); box-shadow:var(--shadow);
+    padding:32px 30px; width:100%; max-width:360px; display:flex; flex-direction:column;
+    align-items:center; gap:6px; text-align:center;
+  }
+  .login-card img{width:64px; height:64px; border-radius:50%; box-shadow:0 0 0 2px var(--gold); margin-bottom:8px;}
+  .login-title{display:flex; flex-direction:column; margin-bottom:18px;}
+  .login-title .brand-school{font-family:var(--font-display); font-size:19px; font-weight:700; letter-spacing:.03em; color:var(--gold-deep);}
+  .login-title .brand-app{font-size:12.5px; color:var(--ink-soft); letter-spacing:.03em; text-transform:uppercase;}
+  #loginForm{display:flex; flex-direction:column; gap:10px; width:100%;}
+  #loginForm input{width:100%; padding:10px 12px; font-size:14px;}
+  #loginForm .btn{margin-top:4px; padding:10px; font-size:14.5px;}
+  .login-error{color:var(--lvl1); font-size:13px; font-weight:600; margin:2px 0 0;}
+
+  .teacher-current{
+    color:var(--on-black); font-weight:600; font-size:14px; padding:7px 16px;
+    background:rgba(255,255,255,.06); border-radius:999px; display:inline-block;
+  }
+
+  @media (max-width:640px){
+    .topbar{padding:12px 14px;} .content{padding:16px 14px 40px;}
+    .period-tabs{padding:10px 14px 0;}
+  }
+</style>
+</head>
+<body>
+
+<div id="loginScreen" class="login-screen">
+  <div class="login-card">
+    <img id="loginLogo" alt="Westwood Wolverines">
+    <div class="login-title">
+      <span class="brand-school">Westwood Wolverines</span>
+      <span class="brand-app">PE Standards Gradebook</span>
+    </div>
+    <form id="loginForm">
+      <input type="email" id="loginEmail" placeholder="School email" autocomplete="username" required>
+      <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password" required>
+      <button type="submit" class="btn primary" id="loginSubmitBtn">Sign in</button>
+      <p class="login-error" id="loginError" hidden></p>
+    </form>
+  </div>
+</div>
+
+<div id="app" hidden>
+  <header class="topbar">
+    <div class="brand">
+      <img id="headerLogo" src="data:image/webp;base64,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" alt="Westwood Wolverines crest">
+      <div class="brand-text">
+        <span class="brand-school">Westwood Wolverines</span>
+        <span class="brand-app">PE Standards Gradebook</span>
+      </div>
+    </div>
+    <div class="teacher-switch" id="teacherSwitch"></div>
+    <div class="topbar-right">
+      <span class="date-tag" id="dateTag"></span>
+      <button class="rubric-btn" id="rubricBtn" type="button">Standards &amp; rubrics</button>
+      <button class="rubric-btn" id="logoutBtn" type="button">Log out</button>
+    </div>
+  </header>
+
+  <nav class="period-tabs" id="periodTabs" role="tablist" aria-label="Select class period"></nav>
+
+  <main class="content">
+    <section class="class-summary">
+      <div class="summary-head">
+        <h2 id="summaryTitle">Class snapshot</h2>
+        <span class="muted" id="summaryMuted"></span>
+      </div>
+      <div class="meter-grid" id="meterGrid"></div>
+    </section>
+
+    <section class="roster-panel">
+      <div class="banner" id="placeholderBanner" hidden>
+        <span>This class still has the demo roster. Paste your real class list to replace it.</span>
+        <button class="btn subtle" id="bannerManageBtn" type="button">Manage roster →</button>
+      </div>
+      <div class="roster-toolbar">
+        <div>
+          <h2 id="classTitle">Class</h2>
+          <span class="sub" id="classSub"></span>
+        </div>
+        <div class="roster-actions">
+          <button class="btn" id="manageRosterBtn" type="button">Manage roster</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table class="roster-table">
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Grade</th>
+              <th class="col-std">Std 1 · Skill</th>
+              <th class="col-std">Std 2 · Strategy</th>
+              <th class="col-std">Std 3 · Fitness</th>
+              <th class="col-std">Std 4 · Responsibility</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="rosterBody"></tbody>
+        </table>
+      </div>
+      <div class="empty-state" id="emptyState" hidden>
+        <h3>No students in this class yet</h3>
+        <p>Use “Manage roster” to paste in your class list.</p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="overlay" id="rosterOverlay" hidden>
+  <div class="drawer" id="rosterDrawer">
+    <div class="drawer-head">
+      <div>
+        <h2>Manage roster</h2>
+        <div class="sub" id="rosterDrawerSub"></div>
+      </div>
+      <button class="drawer-close" id="rosterCloseBtn" type="button" aria-label="Close">✕</button>
+    </div>
+    <div class="drawer-body">
+      <div class="roster-section">
+        <h4>Paste a class list</h4>
+        <p class="no-history">One student name per line. Each is added as a new student in this class. Classes can hold as many students as you need (up to 39+).</p>
+        <textarea id="pasteArea" placeholder="Jordan Alvarez&#10;Sam Bennett&#10;Riley Chen&#10;..."></textarea>
+        <div class="entry-row">
+          <button class="btn primary" id="pasteAddBtn" type="button">Add pasted names</button>
+        </div>
+      </div>
+      <div class="roster-section">
+        <h4>Add one student</h4>
+        <div class="roster-add-row">
+          <input type="text" id="singleNameInput" placeholder="Student name">
+          <select id="singleGradeInput" class="grade-select">
+            <option value="">Grade</option>
+            <option value="6">6th</option>
+            <option value="7">7th</option>
+            <option value="8">8th</option>
+          </select>
+          <button class="btn" id="singleAddBtn" type="button">Add</button>
+        </div>
+      </div>
+      <div class="roster-section">
+        <h4>Current roster (<span id="rosterCount">0</span>)</h4>
+        <ul class="roster-existing" id="rosterExistingList"></ul>
+      </div>
+      <div class="roster-section">
+        <h4>Demo data</h4>
+        <p class="no-history">Once your real roster is in, clear the placeholder “Student N” names left over from setup.</p>
+        <button class="btn danger" id="clearPlaceholderBtn" type="button">Clear placeholder students</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="studentOverlay" hidden>
+  <div class="drawer wide" id="studentDrawer">
+    <div class="drawer-head">
+      <div>
+        <h2 id="studentName">Student</h2>
+        <div class="sub" id="studentSub"></div>
+      </div>
+      <button class="drawer-close" id="studentCloseBtn" type="button" aria-label="Close">✕</button>
+    </div>
+    <div class="drawer-body" id="studentBody"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="rubricOverlay" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h2>Standards &amp; rubrics</h2>
+      <button class="drawer-close" id="rubricCloseBtn" type="button" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body" id="rubricBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- Firebase ----------
+  var firebaseConfig = {
+    apiKey: "AIzaSyDLcMHWQsT_9oox-mm39GJ3i0hhZFzsFmA",
+    authDomain: "westwood-pe-gradebook-336d6.firebaseapp.com",
+    projectId: "westwood-pe-gradebook-336d6",
+    storageBucket: "westwood-pe-gradebook-336d6.firebasestorage.app",
+    messagingSenderId: "923711798847",
+    appId: "1:923711798847:web:502c43832fcefdea00c28a"
+  };
+  firebase.initializeApp(firebaseConfig);
+  var auth = firebase.auth();
+  var db = firebase.firestore();
+
+  var EMAIL_TEACHER_MAP = {
+    "nradtke@cheneysd.org": "radtke",
+    "mperkins@cheneysd.org": "perkins"
+  };
+
+  var STANDARDS = [
+    { id:"1", short:"Skill Application", full:"Students will demonstrate competency in a variety of motor skills and movement patterns.",
+      levels:[
+        {score:1,label:"Emerging",desc:"Attempts skills with minimal success. Requires constant physical or verbal guidance; missing major components of the movement pattern."},
+        {score:2,label:"Developing",desc:"Demonstrates skills with limited effectiveness. Can perform the skill with cues; form may break down when movement or speed is added."},
+        {score:3,label:"Proficient",desc:"Demonstrates skills successfully in game play. Maintains form without cues; demonstrates all critical elements of the skill in isolation and basic practice.",target:true},
+        {score:4,label:"Advanced",desc:"Adapts skills effectively in competitive or complex situations. Anticipates movement needs; adapts instantly to changes; can teach or critique others effectively."}
+      ]},
+    { id:"2", short:"Movement Strategies", full:"Students will apply knowledge of concepts, principles, strategies, and tactics related to movement and performance.",
+      levels:[
+        {score:1,label:"Emerging",desc:"Limited understanding of strategies. Frequently out of position; does not respond to basic tactical cues; unaware of spatial concepts."},
+        {score:2,label:"Developing",desc:"Identifies strategies with prompting. Can define terms (e.g. “offensive transition”) but doesn't always execute the move correctly in a game."},
+        {score:3,label:"Proficient",desc:"Applies appropriate strategies during activities. Uses “open space” effectively; recognizes when to change speed; explains how a skill relates to a principle (e.g. force).",target:true},
+        {score:4,label:"Advanced",desc:"Selects and modifies strategies independently. Can explain the physics behind a movement; creates new offensive plays; predicts and counters opponent tactics."}
+      ]},
+    { id:"3", short:"Fitness & Goal Setting", full:"Students will demonstrate the knowledge and skills to achieve and maintain a health-enhancing level of physical activity and fitness.",
+      levels:[
+        {score:1,label:"Emerging",desc:"Limited awareness of fitness goals. Rarely participates in fitness activities; shows minimal understanding of fitness concepts or goals; requires frequent redirection."},
+        {score:2,label:"Developing",desc:"Sets goals with assistance. Participates inconsistently; demonstrates limited understanding of fitness concepts; requires reminders and support to stay engaged."},
+        {score:3,label:"Proficient",desc:"Sets realistic fitness goals and participates regularly. Demonstrates proper form and effort during exercises; identifies and applies basic fitness concepts.",target:true},
+        {score:4,label:"Advanced",desc:"Independently sets, monitors, and adjusts fitness goals. Consistently applies fitness knowledge; demonstrates leadership and encourages safe, healthy habits in others."}
+      ]},
+    { id:"4", short:"Personal Responsibility", full:"Students will exhibit responsible personal and social behavior that respects self and others.",
+      levels:[
+        {score:1,label:"Emerging",desc:"Frequently unprepared (11+ unprepared markings). Does not consistently follow expectations or safety procedures; struggles to participate respectfully in group activities."},
+        {score:2,label:"Developing",desc:"Occasionally unprepared (7–10 unprepared markings). Sometimes needs reminders; inconsistently follows expectations and safety rules."},
+        {score:3,label:"Proficient",desc:"Prepared for class, dressed safely/appropriately (4–6 unprepared markings). Follows safety rules and uses equipment correctly; cooperates respectfully with peers and staff.",target:true},
+        {score:4,label:"Advanced",desc:"Consistently prepared, encourages others to be prepared (3 or fewer unprepared markings). Models respectful behavior and positive sportsmanship; follows safety expectations independently."}
+      ]}
+  ];
+  var LEVEL_LABELS = {0:"Not yet assessed",1:"Emerging",2:"Developing",3:"Proficient",4:"Advanced"};
+  var TEACHERS = [ {id:"radtke", name:"Mr. Radtke"}, {id:"perkins", name:"Mrs. Perkins"} ];
+  var PERIODS = ["1","2","3","4","7"];
+  var SEED_STUDENTS = [{"name": "Student 1", "teacher": "radtke", "period": "1", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 2, "date": "2026-08-24", "note": "Underhand serve check"}, {"score": 2, "date": "2026-09-03", "note": "Rally drill"}], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-12", "note": ""}, {"score": 4, "date": "2026-08-26", "note": ""}, {"score": 4, "date": "2026-09-04", "note": ""}]}, "id": "demo-radtke-p1-01"}, {"name": "Student 2", "teacher": "radtke", "period": "1", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 1, "date": "2026-08-24", "note": "Underhand serve check"}, {"score": 1, "date": "2026-09-03", "note": "Rally drill"}], "2": [], "3": [], "4": [{"score": 1, "date": "2026-08-12", "note": ""}, {"score": 2, "date": "2026-08-26", "note": ""}, {"score": 2, "date": "2026-09-04", "note": ""}]}, "id": "demo-radtke-p1-02"}, {"name": "Student 3", "teacher": "radtke", "period": "1", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 2, "date": "2026-08-24", "note": "Underhand serve check"}], "2": [{"score": 2, "date": "2026-09-01", "note": ""}], "3": [], "4": [{"score": 3, "date": "2026-08-12", "note": ""}, {"score": 4, "date": "2026-08-26", "note": ""}, {"score": 4, "date": "2026-09-04", "note": ""}]}, "id": "demo-radtke-p1-03"}, {"name": "Student 4", "teacher": "radtke", "period": "1", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 2, "date": "2026-08-24", "note": "Underhand serve check"}, {"score": 3, "date": "2026-09-03", "note": "Rally drill"}], "2": [{"score": 2, "date": "2026-09-01", "note": ""}], "3": [], "4": [{"score": 2, "date": "2026-08-12", "note": ""}, {"score": 3, "date": "2026-08-26", "note": ""}, {"score": 4, "date": "2026-09-04", "note": ""}]}, "id": "demo-radtke-p1-04"}, {"name": "Student 5", "teacher": "radtke", "period": "1", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 3, "date": "2026-08-24", "note": "Underhand serve check"}, {"score": 4, "date": "2026-09-03", "note": "Rally drill"}], "2": [], "3": [], "4": [{"score": 1, "date": "2026-08-12", "note": ""}, {"score": 2, "date": "2026-08-26", "note": ""}, {"score": 2, "date": "2026-09-04", "note": ""}]}, "id": "demo-radtke-p1-05"}, {"name": "Student 6", "teacher": "radtke", "period": "1", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 1, "date": "2026-08-24", "note": "Underhand serve check"}], "2": [], "3": [], "4": [{"score": 2, "date": "2026-08-12", "note": ""}, {"score": 3, "date": "2026-08-26", "note": ""}, {"score": 3, "date": "2026-09-04", "note": ""}]}, "id": "demo-radtke-p1-06"}, {"name": "Student 7", "teacher": "radtke", "period": "1", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 3, "date": "2026-08-24", "note": "Underhand serve check"}], "2": [{"score": 2, "date": "2026-09-01", "note": ""}], "3": [{"score": 3, "date": "2026-09-05", "note": "Set initial fitness goal"}], "4": [{"score": 1, "date": "2026-08-12", "note": ""}, {"score": 2, "date": "2026-08-26", "note": ""}, {"score": 2, "date": "2026-09-04", "note": ""}]}, "id": "demo-radtke-p1-07"}, {"name": "Student 8", "teacher": "radtke", "period": "1", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 2, "date": "2026-08-24", "note": "Underhand serve check"}, {"score": 2, "date": "2026-09-03", "note": "Rally drill"}], "2": [{"score": 3, "date": "2026-09-01", "note": ""}], "3": [{"score": 2, "date": "2026-09-05", "note": "Set initial fitness goal"}], "4": [{"score": 3, "date": "2026-08-12", "note": ""}, {"score": 4, "date": "2026-08-26", "note": ""}, {"score": 4, "date": "2026-09-04", "note": ""}]}, "id": "demo-radtke-p1-08"}, {"name": "Student 9", "teacher": "radtke", "period": "1", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 1, "date": "2026-08-24", "note": "Underhand serve check"}, {"score": 1, "date": "2026-09-03", "note": "Rally drill"}], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-12", "note": ""}, {"score": 4, "date": "2026-08-26", "note": ""}, {"score": 4, "date": "2026-09-04", "note": ""}]}, "id": "demo-radtke-p1-09"}, {"name": "Student 10", "teacher": "radtke", "period": "1", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [{"score": 3, "date": "2026-09-05", "note": "Set initial fitness goal"}], "4": [{"score": 1, "date": "2026-08-12", "note": ""}, {"score": 2, "date": "2026-08-26", "note": ""}, {"score": 3, "date": "2026-09-04", "note": ""}]}, "id": "demo-radtke-p1-10"}, {"name": "Student 11", "teacher": "radtke", "period": "1", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 2, "date": "2026-08-24", "note": "Underhand serve check"}, {"score": 2, "date": "2026-09-03", "note": "Rally drill"}], "2": [], "3": [], "4": [{"score": 2, "date": "2026-08-12", "note": ""}, {"score": 3, "date": "2026-08-26", "note": ""}, {"score": 3, "date": "2026-09-04", "note": ""}]}, "id": "demo-radtke-p1-11"}, {"name": "Student 12", "teacher": "radtke", "period": "1", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [{"score": 2, "date": "2026-09-01", "note": ""}], "3": [], "4": [{"score": 3, "date": "2026-08-12", "note": ""}, {"score": 4, "date": "2026-08-26", "note": ""}, {"score": 4, "date": "2026-09-04", "note": ""}]}, "id": "demo-radtke-p1-12"}, {"name": "Student 13", "teacher": "radtke", "period": "1", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 1, "date": "2026-08-24", "note": "Underhand serve check"}], "2": [{"score": 2, "date": "2026-09-01", "note": ""}], "3": [], "4": [{"score": 1, "date": "2026-08-12", "note": ""}, {"score": 2, "date": "2026-08-26", "note": ""}, {"score": 2, "date": "2026-09-04", "note": ""}]}, "id": "demo-radtke-p1-13"}, {"name": "Student 14", "teacher": "radtke", "period": "1", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 3, "date": "2026-08-24", "note": "Underhand serve check"}, {"score": 3, "date": "2026-09-03", "note": "Rally drill"}], "2": [], "3": [{"score": 3, "date": "2026-09-05", "note": "Set initial fitness goal"}], "4": [{"score": 2, "date": "2026-08-12", "note": ""}, {"score": 3, "date": "2026-08-26", "note": ""}, {"score": 3, "date": "2026-09-04", "note": ""}]}, "id": "demo-radtke-p1-14"}, {"name": "Student 15", "teacher": "radtke", "period": "1", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 2, "date": "2026-08-24", "note": "Underhand serve check"}, {"score": 3, "date": "2026-09-03", "note": "Rally drill"}], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-12", "note": ""}, {"score": 4, "date": "2026-08-26", "note": ""}, {"score": 4, "date": "2026-09-04", "note": ""}]}, "id": "demo-radtke-p1-15"}, {"name": "Student 16", "teacher": "radtke", "period": "1", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [{"score": 2, "date": "2026-09-01", "note": ""}], "3": [{"score": 2, "date": "2026-09-05", "note": "Set initial fitness goal"}], "4": [{"score": 2, "date": "2026-08-12", "note": ""}, {"score": 3, "date": "2026-08-26", "note": ""}, {"score": 3, "date": "2026-09-04", "note": ""}]}, "id": "demo-radtke-p1-16"}, {"name": "Student 17", "teacher": "radtke", "period": "1", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 2, "date": "2026-08-12", "note": ""}, {"score": 3, "date": "2026-08-26", "note": ""}, {"score": 3, "date": "2026-09-04", "note": ""}]}, "id": "demo-radtke-p1-17"}, {"name": "Student 18", "teacher": "radtke", "period": "1", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 2, "date": "2026-08-12", "note": ""}, {"score": 3, "date": "2026-08-26", "note": ""}, {"score": 4, "date": "2026-09-04", "note": ""}]}, "id": "demo-radtke-p1-18"}, {"name": "Student 1", "teacher": "radtke", "period": "2", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [{"score": 3, "date": "2026-09-05", "note": ""}], "4": [{"score": 2, "date": "2026-08-29", "note": ""}]}, "id": "demo-radtke-p2-01"}, {"name": "Student 2", "teacher": "radtke", "period": "2", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": []}, "id": "demo-radtke-p2-02"}, {"name": "Student 3", "teacher": "radtke", "period": "2", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 3, "date": "2026-08-23", "note": ""}], "2": [], "3": [], "4": []}, "id": "demo-radtke-p2-03"}, {"name": "Student 4", "teacher": "radtke", "period": "2", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": []}, "id": "demo-radtke-p2-04"}, {"name": "Student 5", "teacher": "radtke", "period": "2", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-22", "note": ""}]}, "id": "demo-radtke-p2-05"}, {"name": "Student 6", "teacher": "radtke", "period": "2", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [{"score": 2, "date": "2026-09-03", "note": ""}], "4": [{"score": 2, "date": "2026-08-18", "note": ""}]}, "id": "demo-radtke-p2-06"}, {"name": "Student 7", "teacher": "radtke", "period": "2", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 1, "date": "2026-09-01", "note": ""}], "2": [], "3": [], "4": [{"score": 2, "date": "2026-08-26", "note": ""}]}, "id": "demo-radtke-p2-07"}, {"name": "Student 8", "teacher": "radtke", "period": "2", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 4, "date": "2026-08-29", "note": ""}]}, "id": "demo-radtke-p2-08"}, {"name": "Student 9", "teacher": "radtke", "period": "2", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 4, "date": "2026-08-25", "note": ""}]}, "id": "demo-radtke-p2-09"}, {"name": "Student 10", "teacher": "radtke", "period": "2", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 2, "date": "2026-09-04", "note": ""}]}, "id": "demo-radtke-p2-10"}, {"name": "Student 11", "teacher": "radtke", "period": "2", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-19", "note": ""}]}, "id": "demo-radtke-p2-11"}, {"name": "Student 12", "teacher": "radtke", "period": "2", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [{"score": 2, "date": "2026-09-05", "note": ""}], "4": [{"score": 2, "date": "2026-08-22", "note": ""}]}, "id": "demo-radtke-p2-12"}, {"name": "Student 13", "teacher": "radtke", "period": "2", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": []}, "id": "demo-radtke-p2-13"}, {"name": "Student 14", "teacher": "radtke", "period": "2", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 1, "date": "2026-08-30", "note": ""}], "2": [], "3": [], "4": [{"score": 4, "date": "2026-09-04", "note": ""}]}, "id": "demo-radtke-p2-14"}, {"name": "Student 15", "teacher": "radtke", "period": "2", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 4, "date": "2026-08-19", "note": ""}]}, "id": "demo-radtke-p2-15"}, {"name": "Student 16", "teacher": "radtke", "period": "2", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [{"score": 2, "date": "2026-09-05", "note": ""}], "3": [{"score": 3, "date": "2026-09-04", "note": ""}], "4": [{"score": 2, "date": "2026-08-18", "note": ""}]}, "id": "demo-radtke-p2-16"}, {"name": "Student 17", "teacher": "radtke", "period": "2", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 1, "date": "2026-08-26", "note": ""}], "2": [], "3": [], "4": [{"score": 2, "date": "2026-08-31", "note": ""}]}, "id": "demo-radtke-p2-17"}, {"name": "Student 18", "teacher": "radtke", "period": "2", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [{"score": 2, "date": "2026-08-31", "note": ""}], "4": []}, "id": "demo-radtke-p2-18"}, {"name": "Student 1", "teacher": "radtke", "period": "3", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 3, "date": "2026-08-31", "note": ""}], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-28", "note": ""}]}, "id": "demo-radtke-p3-01"}, {"name": "Student 2", "teacher": "radtke", "period": "3", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [{"score": 3, "date": "2026-09-05", "note": ""}], "4": [{"score": 3, "date": "2026-08-22", "note": ""}]}, "id": "demo-radtke-p3-02"}, {"name": "Student 3", "teacher": "radtke", "period": "3", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 2, "date": "2026-09-04", "note": ""}], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-20", "note": ""}]}, "id": "demo-radtke-p3-03"}, {"name": "Student 4", "teacher": "radtke", "period": "3", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 3, "date": "2026-09-01", "note": ""}], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-20", "note": ""}]}, "id": "demo-radtke-p3-04"}, {"name": "Student 5", "teacher": "radtke", "period": "3", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 1, "date": "2026-08-25", "note": ""}], "2": [], "3": [], "4": []}, "id": "demo-radtke-p3-05"}, {"name": "Student 6", "teacher": "radtke", "period": "3", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-30", "note": ""}]}, "id": "demo-radtke-p3-06"}, {"name": "Student 7", "teacher": "radtke", "period": "3", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [{"score": 3, "date": "2026-09-04", "note": ""}], "4": [{"score": 2, "date": "2026-09-03", "note": ""}]}, "id": "demo-radtke-p3-07"}, {"name": "Student 8", "teacher": "radtke", "period": "3", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-31", "note": ""}]}, "id": "demo-radtke-p3-08"}, {"name": "Student 9", "teacher": "radtke", "period": "3", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 2, "date": "2026-09-01", "note": ""}]}, "id": "demo-radtke-p3-09"}, {"name": "Student 10", "teacher": "radtke", "period": "3", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-09-04", "note": ""}]}, "id": "demo-radtke-p3-10"}, {"name": "Student 11", "teacher": "radtke", "period": "3", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": []}, "id": "demo-radtke-p3-11"}, {"name": "Student 12", "teacher": "radtke", "period": "3", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 4, "date": "2026-09-01", "note": ""}]}, "id": "demo-radtke-p3-12"}, {"name": "Student 13", "teacher": "radtke", "period": "3", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 2, "date": "2026-09-05", "note": ""}], "2": [], "3": [], "4": []}, "id": "demo-radtke-p3-13"}, {"name": "Student 14", "teacher": "radtke", "period": "3", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": []}, "id": "demo-radtke-p3-14"}, {"name": "Student 15", "teacher": "radtke", "period": "3", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [{"score": 2, "date": "2026-09-02", "note": ""}], "3": [], "4": [{"score": 3, "date": "2026-09-02", "note": ""}]}, "id": "demo-radtke-p3-15"}, {"name": "Student 16", "teacher": "radtke", "period": "3", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": []}, "id": "demo-radtke-p3-16"}, {"name": "Student 17", "teacher": "radtke", "period": "3", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-24", "note": ""}]}, "id": "demo-radtke-p3-17"}, {"name": "Student 18", "teacher": "radtke", "period": "3", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [{"score": 2, "date": "2026-09-03", "note": ""}], "3": [], "4": [{"score": 4, "date": "2026-08-19", "note": ""}]}, "id": "demo-radtke-p3-18"}, {"name": "Student 1", "teacher": "radtke", "period": "4", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 3, "date": "2026-08-30", "note": ""}], "2": [], "3": [], "4": []}, "id": "demo-radtke-p4-01"}, {"name": "Student 2", "teacher": "radtke", "period": "4", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [{"score": 3, "date": "2026-09-06", "note": ""}], "4": [{"score": 2, "date": "2026-08-24", "note": ""}]}, "id": "demo-radtke-p4-02"}, {"name": "Student 3", "teacher": "radtke", "period": "4", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-25", "note": ""}]}, "id": "demo-radtke-p4-03"}, {"name": "Student 4", "teacher": "radtke", "period": "4", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 2, "date": "2026-08-27", "note": ""}]}, "id": "demo-radtke-p4-04"}, {"name": "Student 5", "teacher": "radtke", "period": "4", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-30", "note": ""}]}, "id": "demo-radtke-p4-05"}, {"name": "Student 6", "teacher": "radtke", "period": "4", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": []}, "id": "demo-radtke-p4-06"}, {"name": "Student 7", "teacher": "radtke", "period": "4", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-30", "note": ""}]}, "id": "demo-radtke-p4-07"}, {"name": "Student 8", "teacher": "radtke", "period": "4", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 4, "date": "2026-08-30", "note": ""}]}, "id": "demo-radtke-p4-08"}, {"name": "Student 9", "teacher": "radtke", "period": "4", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": []}, "id": "demo-radtke-p4-09"}, {"name": "Student 10", "teacher": "radtke", "period": "4", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 2, "date": "2026-08-29", "note": ""}]}, "id": "demo-radtke-p4-10"}, {"name": "Student 11", "teacher": "radtke", "period": "4", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-21", "note": ""}]}, "id": "demo-radtke-p4-11"}, {"name": "Student 12", "teacher": "radtke", "period": "4", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": []}, "id": "demo-radtke-p4-12"}, {"name": "Student 13", "teacher": "radtke", "period": "4", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-09-05", "note": ""}]}, "id": "demo-radtke-p4-13"}, {"name": "Student 14", "teacher": "radtke", "period": "4", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 3, "date": "2026-08-28", "note": ""}], "2": [], "3": [], "4": []}, "id": "demo-radtke-p4-14"}, {"name": "Student 15", "teacher": "radtke", "period": "4", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 1, "date": "2026-08-24", "note": ""}], "2": [], "3": [], "4": []}, "id": "demo-radtke-p4-15"}, {"name": "Student 16", "teacher": "radtke", "period": "4", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-22", "note": ""}]}, "id": "demo-radtke-p4-16"}, {"name": "Student 17", "teacher": "radtke", "period": "4", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": []}, "id": "demo-radtke-p4-17"}, {"name": "Student 18", "teacher": "radtke", "period": "4", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-29", "note": ""}]}, "id": "demo-radtke-p4-18"}, {"name": "Student 1", "teacher": "radtke", "period": "7", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-28", "note": ""}]}, "id": "demo-radtke-p7-01"}, {"name": "Student 2", "teacher": "radtke", "period": "7", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 2, "date": "2026-08-25", "note": ""}], "2": [], "3": [], "4": [{"score": 2, "date": "2026-09-01", "note": ""}]}, "id": "demo-radtke-p7-02"}, {"name": "Student 3", "teacher": "radtke", "period": "7", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [{"score": 2, "date": "2026-08-30", "note": ""}], "3": [], "4": [{"score": 3, "date": "2026-08-19", "note": ""}]}, "id": "demo-radtke-p7-03"}, {"name": "Student 4", "teacher": "radtke", "period": "7", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [{"score": 2, "date": "2026-09-01", "note": ""}], "3": [], "4": [{"score": 2, "date": "2026-08-18", "note": ""}]}, "id": "demo-radtke-p7-04"}, {"name": "Student 5", "teacher": "radtke", "period": "7", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": []}, "id": "demo-radtke-p7-05"}, {"name": "Student 6", "teacher": "radtke", "period": "7", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 2, "date": "2026-08-29", "note": ""}], "2": [{"score": 2, "date": "2026-08-30", "note": ""}], "3": [], "4": [{"score": 3, "date": "2026-08-21", "note": ""}]}, "id": "demo-radtke-p7-06"}, {"name": "Student 7", "teacher": "radtke", "period": "7", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": []}, "id": "demo-radtke-p7-07"}, {"name": "Student 8", "teacher": "radtke", "period": "7", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [{"score": 3, "date": "2026-09-04", "note": ""}], "4": []}, "id": "demo-radtke-p7-08"}, {"name": "Student 9", "teacher": "radtke", "period": "7", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 2, "date": "2026-08-30", "note": ""}], "2": [], "3": [], "4": []}, "id": "demo-radtke-p7-09"}, {"name": "Student 10", "teacher": "radtke", "period": "7", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 4, "date": "2026-08-28", "note": ""}]}, "id": "demo-radtke-p7-10"}, {"name": "Student 11", "teacher": "radtke", "period": "7", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 2, "date": "2026-09-02", "note": ""}], "2": [], "3": [], "4": [{"score": 2, "date": "2026-08-19", "note": ""}]}, "id": "demo-radtke-p7-11"}, {"name": "Student 12", "teacher": "radtke", "period": "7", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 1, "date": "2026-08-27", "note": ""}], "2": [], "3": [], "4": [{"score": 2, "date": "2026-08-29", "note": ""}]}, "id": "demo-radtke-p7-12"}, {"name": "Student 13", "teacher": "radtke", "period": "7", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-22", "note": ""}]}, "id": "demo-radtke-p7-13"}, {"name": "Student 14", "teacher": "radtke", "period": "7", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [{"score": 1, "date": "2026-09-01", "note": ""}], "3": [], "4": [{"score": 2, "date": "2026-08-31", "note": ""}]}, "id": "demo-radtke-p7-14"}, {"name": "Student 15", "teacher": "radtke", "period": "7", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": []}, "id": "demo-radtke-p7-15"}, {"name": "Student 16", "teacher": "radtke", "period": "7", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-09-02", "note": ""}]}, "id": "demo-radtke-p7-16"}, {"name": "Student 17", "teacher": "radtke", "period": "7", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [{"score": 3, "date": "2026-09-01", "note": ""}], "4": []}, "id": "demo-radtke-p7-17"}, {"name": "Student 18", "teacher": "radtke", "period": "7", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-09-05", "note": ""}]}, "id": "demo-radtke-p7-18"}, {"name": "Student 1", "teacher": "perkins", "period": "1", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": []}, "id": "demo-perkins-p1-01"}, {"name": "Student 2", "teacher": "perkins", "period": "1", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-19", "note": ""}]}, "id": "demo-perkins-p1-02"}, {"name": "Student 3", "teacher": "perkins", "period": "1", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [{"score": 2, "date": "2026-09-02", "note": ""}], "3": [], "4": [{"score": 3, "date": "2026-08-29", "note": ""}]}, "id": "demo-perkins-p1-03"}, {"name": "Student 4", "teacher": "perkins", "period": "1", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 2, "date": "2026-09-03", "note": ""}], "2": [], "3": [], "4": [{"score": 4, "date": "2026-08-26", "note": ""}]}, "id": "demo-perkins-p1-04"}, {"name": "Student 5", "teacher": "perkins", "period": "1", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-28", "note": ""}]}, "id": "demo-perkins-p1-05"}, {"name": "Student 6", "teacher": "perkins", "period": "1", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 4, "date": "2026-08-21", "note": ""}]}, "id": "demo-perkins-p1-06"}, {"name": "Student 7", "teacher": "perkins", "period": "1", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [{"score": 2, "date": "2026-09-02", "note": ""}], "3": [], "4": []}, "id": "demo-perkins-p1-07"}, {"name": "Student 8", "teacher": "perkins", "period": "1", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-21", "note": ""}]}, "id": "demo-perkins-p1-08"}, {"name": "Student 9", "teacher": "perkins", "period": "1", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 2, "date": "2026-09-02", "note": ""}], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-22", "note": ""}]}, "id": "demo-perkins-p1-09"}, {"name": "Student 10", "teacher": "perkins", "period": "1", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 2, "date": "2026-09-01", "note": ""}], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-30", "note": ""}]}, "id": "demo-perkins-p1-10"}, {"name": "Student 11", "teacher": "perkins", "period": "1", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-09-02", "note": ""}]}, "id": "demo-perkins-p1-11"}, {"name": "Student 12", "teacher": "perkins", "period": "1", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 1, "date": "2026-08-28", "note": ""}], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-28", "note": ""}]}, "id": "demo-perkins-p1-12"}, {"name": "Student 13", "teacher": "perkins", "period": "1", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 4, "date": "2026-09-02", "note": ""}]}, "id": "demo-perkins-p1-13"}, {"name": "Student 14", "teacher": "perkins", "period": "1", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 2, "date": "2026-09-04", "note": ""}], "2": [], "3": [], "4": [{"score": 3, "date": "2026-09-04", "note": ""}]}, "id": "demo-perkins-p1-14"}, {"name": "Student 15", "teacher": "perkins", "period": "1", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 3, "date": "2026-09-01", "note": ""}], "2": [{"score": 1, "date": "2026-09-04", "note": ""}], "3": [], "4": [{"score": 2, "date": "2026-09-01", "note": ""}]}, "id": "demo-perkins-p1-15"}, {"name": "Student 16", "teacher": "perkins", "period": "1", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-20", "note": ""}]}, "id": "demo-perkins-p1-16"}, {"name": "Student 17", "teacher": "perkins", "period": "1", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [{"score": 3, "date": "2026-09-04", "note": ""}], "3": [], "4": [{"score": 4, "date": "2026-08-27", "note": ""}]}, "id": "demo-perkins-p1-17"}, {"name": "Student 18", "teacher": "perkins", "period": "1", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-28", "note": ""}]}, "id": "demo-perkins-p1-18"}, {"name": "Student 1", "teacher": "perkins", "period": "2", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 2, "date": "2026-08-23", "note": ""}]}, "id": "demo-perkins-p2-01"}, {"name": "Student 2", "teacher": "perkins", "period": "2", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 1, "date": "2026-09-01", "note": ""}], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-22", "note": ""}]}, "id": "demo-perkins-p2-02"}, {"name": "Student 3", "teacher": "perkins", "period": "2", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 1, "date": "2026-08-26", "note": ""}], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-23", "note": ""}]}, "id": "demo-perkins-p2-03"}, {"name": "Student 4", "teacher": "perkins", "period": "2", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 2, "date": "2026-08-31", "note": ""}]}, "id": "demo-perkins-p2-04"}, {"name": "Student 5", "teacher": "perkins", "period": "2", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": []}, "id": "demo-perkins-p2-05"}, {"name": "Student 6", "teacher": "perkins", "period": "2", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-20", "note": ""}]}, "id": "demo-perkins-p2-06"}, {"name": "Student 7", "teacher": "perkins", "period": "2", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [{"score": 2, "date": "2026-09-06", "note": ""}], "4": []}, "id": "demo-perkins-p2-07"}, {"name": "Student 8", "teacher": "perkins", "period": "2", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [{"score": 2, "date": "2026-08-30", "note": ""}], "4": []}, "id": "demo-perkins-p2-08"}, {"name": "Student 9", "teacher": "perkins", "period": "2", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 3, "date": "2026-08-30", "note": ""}], "2": [], "3": [], "4": [{"score": 4, "date": "2026-08-28", "note": ""}]}, "id": "demo-perkins-p2-09"}, {"name": "Student 10", "teacher": "perkins", "period": "2", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-23", "note": ""}]}, "id": "demo-perkins-p2-10"}, {"name": "Student 11", "teacher": "perkins", "period": "2", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 4, "date": "2026-08-27", "note": ""}]}, "id": "demo-perkins-p2-11"}, {"name": "Student 12", "teacher": "perkins", "period": "2", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 1, "date": "2026-08-24", "note": ""}], "2": [], "3": [], "4": [{"score": 2, "date": "2026-08-26", "note": ""}]}, "id": "demo-perkins-p2-12"}, {"name": "Student 13", "teacher": "perkins", "period": "2", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": []}, "id": "demo-perkins-p2-13"}, {"name": "Student 14", "teacher": "perkins", "period": "2", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-21", "note": ""}]}, "id": "demo-perkins-p2-14"}, {"name": "Student 15", "teacher": "perkins", "period": "2", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [{"score": 2, "date": "2026-09-04", "note": ""}], "4": [{"score": 3, "date": "2026-08-22", "note": ""}]}, "id": "demo-perkins-p2-15"}, {"name": "Student 16", "teacher": "perkins", "period": "2", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 2, "date": "2026-08-19", "note": ""}]}, "id": "demo-perkins-p2-16"}, {"name": "Student 17", "teacher": "perkins", "period": "2", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 2, "date": "2026-09-01", "note": ""}]}, "id": "demo-perkins-p2-17"}, {"name": "Student 18", "teacher": "perkins", "period": "2", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 3, "date": "2026-09-03", "note": ""}], "2": [], "3": [], "4": [{"score": 4, "date": "2026-08-21", "note": ""}]}, "id": "demo-perkins-p2-18"}, {"name": "Student 1", "teacher": "perkins", "period": "3", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 2, "date": "2026-08-31", "note": ""}], "2": [], "3": [], "4": [{"score": 3, "date": "2026-09-03", "note": ""}]}, "id": "demo-perkins-p3-01"}, {"name": "Student 2", "teacher": "perkins", "period": "3", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 2, "date": "2026-08-23", "note": ""}], "2": [], "3": [], "4": []}, "id": "demo-perkins-p3-02"}, {"name": "Student 3", "teacher": "perkins", "period": "3", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-22", "note": ""}]}, "id": "demo-perkins-p3-03"}, {"name": "Student 4", "teacher": "perkins", "period": "3", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 4, "date": "2026-08-26", "note": ""}]}, "id": "demo-perkins-p3-04"}, {"name": "Student 5", "teacher": "perkins", "period": "3", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 4, "date": "2026-09-04", "note": ""}]}, "id": "demo-perkins-p3-05"}, {"name": "Student 6", "teacher": "perkins", "period": "3", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-21", "note": ""}]}, "id": "demo-perkins-p3-06"}, {"name": "Student 7", "teacher": "perkins", "period": "3", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 2, "date": "2026-09-05", "note": ""}], "2": [], "3": [], "4": [{"score": 2, "date": "2026-08-22", "note": ""}]}, "id": "demo-perkins-p3-07"}, {"name": "Student 8", "teacher": "perkins", "period": "3", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-09-03", "note": ""}]}, "id": "demo-perkins-p3-08"}, {"name": "Student 9", "teacher": "perkins", "period": "3", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 2, "date": "2026-08-26", "note": ""}]}, "id": "demo-perkins-p3-09"}, {"name": "Student 10", "teacher": "perkins", "period": "3", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 1, "date": "2026-09-02", "note": ""}], "2": [], "3": [], "4": [{"score": 4, "date": "2026-08-19", "note": ""}]}, "id": "demo-perkins-p3-10"}, {"name": "Student 11", "teacher": "perkins", "period": "3", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [{"score": 2, "date": "2026-08-30", "note": ""}], "4": []}, "id": "demo-perkins-p3-11"}, {"name": "Student 12", "teacher": "perkins", "period": "3", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 1, "date": "2026-09-01", "note": ""}], "2": [], "3": [], "4": [{"score": 3, "date": "2026-09-05", "note": ""}]}, "id": "demo-perkins-p3-12"}, {"name": "Student 13", "teacher": "perkins", "period": "3", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 4, "date": "2026-08-18", "note": ""}]}, "id": "demo-perkins-p3-13"}, {"name": "Student 14", "teacher": "perkins", "period": "3", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 4, "date": "2026-08-29", "note": ""}]}, "id": "demo-perkins-p3-14"}, {"name": "Student 15", "teacher": "perkins", "period": "3", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 4, "date": "2026-08-28", "note": ""}]}, "id": "demo-perkins-p3-15"}, {"name": "Student 16", "teacher": "perkins", "period": "3", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-09-03", "note": ""}]}, "id": "demo-perkins-p3-16"}, {"name": "Student 17", "teacher": "perkins", "period": "3", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 4, "date": "2026-08-28", "note": ""}]}, "id": "demo-perkins-p3-17"}, {"name": "Student 18", "teacher": "perkins", "period": "3", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 2, "date": "2026-08-27", "note": ""}], "2": [], "3": [], "4": []}, "id": "demo-perkins-p3-18"}, {"name": "Student 1", "teacher": "perkins", "period": "4", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 3, "date": "2026-08-23", "note": ""}], "2": [], "3": [], "4": [{"score": 2, "date": "2026-08-24", "note": ""}]}, "id": "demo-perkins-p4-01"}, {"name": "Student 2", "teacher": "perkins", "period": "4", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 4, "date": "2026-08-27", "note": ""}]}, "id": "demo-perkins-p4-02"}, {"name": "Student 3", "teacher": "perkins", "period": "4", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-28", "note": ""}]}, "id": "demo-perkins-p4-03"}, {"name": "Student 4", "teacher": "perkins", "period": "4", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": []}, "id": "demo-perkins-p4-04"}, {"name": "Student 5", "teacher": "perkins", "period": "4", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [{"score": 3, "date": "2026-09-01", "note": ""}], "4": [{"score": 4, "date": "2026-09-04", "note": ""}]}, "id": "demo-perkins-p4-05"}, {"name": "Student 6", "teacher": "perkins", "period": "4", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 1, "date": "2026-08-24", "note": ""}], "2": [], "3": [], "4": []}, "id": "demo-perkins-p4-06"}, {"name": "Student 7", "teacher": "perkins", "period": "4", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 2, "date": "2026-08-24", "note": ""}], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-31", "note": ""}]}, "id": "demo-perkins-p4-07"}, {"name": "Student 8", "teacher": "perkins", "period": "4", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [{"score": 1, "date": "2026-08-30", "note": ""}], "3": [], "4": []}, "id": "demo-perkins-p4-08"}, {"name": "Student 9", "teacher": "perkins", "period": "4", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [{"score": 2, "date": "2026-08-30", "note": ""}], "4": []}, "id": "demo-perkins-p4-09"}, {"name": "Student 10", "teacher": "perkins", "period": "4", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-18", "note": ""}]}, "id": "demo-perkins-p4-10"}, {"name": "Student 11", "teacher": "perkins", "period": "4", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 4, "date": "2026-09-05", "note": ""}]}, "id": "demo-perkins-p4-11"}, {"name": "Student 12", "teacher": "perkins", "period": "4", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 2, "date": "2026-08-22", "note": ""}]}, "id": "demo-perkins-p4-12"}, {"name": "Student 13", "teacher": "perkins", "period": "4", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [{"score": 1, "date": "2026-08-28", "note": ""}], "3": [], "4": [{"score": 2, "date": "2026-08-27", "note": ""}]}, "id": "demo-perkins-p4-13"}, {"name": "Student 14", "teacher": "perkins", "period": "4", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 4, "date": "2026-08-18", "note": ""}]}, "id": "demo-perkins-p4-14"}, {"name": "Student 15", "teacher": "perkins", "period": "4", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 4, "date": "2026-08-23", "note": ""}]}, "id": "demo-perkins-p4-15"}, {"name": "Student 16", "teacher": "perkins", "period": "4", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [{"score": 3, "date": "2026-08-31", "note": ""}], "3": [], "4": [{"score": 4, "date": "2026-08-29", "note": ""}]}, "id": "demo-perkins-p4-16"}, {"name": "Student 17", "teacher": "perkins", "period": "4", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": []}, "id": "demo-perkins-p4-17"}, {"name": "Student 18", "teacher": "perkins", "period": "4", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 4, "date": "2026-09-03", "note": ""}]}, "id": "demo-perkins-p4-18"}, {"name": "Student 1", "teacher": "perkins", "period": "7", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-29", "note": ""}]}, "id": "demo-perkins-p7-01"}, {"name": "Student 2", "teacher": "perkins", "period": "7", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": []}, "id": "demo-perkins-p7-02"}, {"name": "Student 3", "teacher": "perkins", "period": "7", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 1, "date": "2026-09-03", "note": ""}], "2": [], "3": [], "4": [{"score": 3, "date": "2026-09-05", "note": ""}]}, "id": "demo-perkins-p7-03"}, {"name": "Student 4", "teacher": "perkins", "period": "7", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 1, "date": "2026-08-27", "note": ""}], "2": [], "3": [], "4": [{"score": 2, "date": "2026-09-01", "note": ""}]}, "id": "demo-perkins-p7-04"}, {"name": "Student 5", "teacher": "perkins", "period": "7", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 1, "date": "2026-08-29", "note": ""}], "2": [], "3": [], "4": [{"score": 4, "date": "2026-08-20", "note": ""}]}, "id": "demo-perkins-p7-05"}, {"name": "Student 6", "teacher": "perkins", "period": "7", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 3, "date": "2026-09-05", "note": ""}], "2": [], "3": [], "4": [{"score": 4, "date": "2026-08-20", "note": ""}]}, "id": "demo-perkins-p7-06"}, {"name": "Student 7", "teacher": "perkins", "period": "7", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [{"score": 2, "date": "2026-08-30", "note": ""}], "3": [], "4": [{"score": 3, "date": "2026-08-22", "note": ""}]}, "id": "demo-perkins-p7-07"}, {"name": "Student 8", "teacher": "perkins", "period": "7", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 4, "date": "2026-09-03", "note": ""}]}, "id": "demo-perkins-p7-08"}, {"name": "Student 9", "teacher": "perkins", "period": "7", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-24", "note": ""}]}, "id": "demo-perkins-p7-09"}, {"name": "Student 10", "teacher": "perkins", "period": "7", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 2, "date": "2026-09-02", "note": ""}]}, "id": "demo-perkins-p7-10"}, {"name": "Student 11", "teacher": "perkins", "period": "7", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 2, "date": "2026-09-02", "note": ""}], "2": [], "3": [], "4": []}, "id": "demo-perkins-p7-11"}, {"name": "Student 12", "teacher": "perkins", "period": "7", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 2, "date": "2026-08-26", "note": ""}]}, "id": "demo-perkins-p7-12"}, {"name": "Student 13", "teacher": "perkins", "period": "7", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 1, "date": "2026-09-04", "note": ""}], "2": [], "3": [], "4": [{"score": 4, "date": "2026-09-03", "note": ""}]}, "id": "demo-perkins-p7-13"}, {"name": "Student 14", "teacher": "perkins", "period": "7", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [{"score": 3, "date": "2026-08-28", "note": ""}], "2": [], "3": [], "4": [{"score": 3, "date": "2026-08-19", "note": ""}]}, "id": "demo-perkins-p7-14"}, {"name": "Student 15", "teacher": "perkins", "period": "7", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 4, "date": "2026-09-04", "note": ""}]}, "id": "demo-perkins-p7-15"}, {"name": "Student 16", "teacher": "perkins", "period": "7", "grade": 6, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": [{"score": 3, "date": "2026-09-01", "note": ""}]}, "id": "demo-perkins-p7-16"}, {"name": "Student 17", "teacher": "perkins", "period": "7", "grade": 7, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": []}, "id": "demo-perkins-p7-17"}, {"name": "Student 18", "teacher": "perkins", "period": "7", "grade": 8, "placeholder": true, "createdAt": "2026-08-10", "scores": {"1": [], "2": [], "3": [], "4": []}, "id": "demo-perkins-p7-18"}];
+
+  var state = {
+    teacher: TEACHERS[0].id,
+    period: PERIODS[0],
+    allStudents: [],
+    students: [],       // current class roster (derived)
+    openStudentId: null
+  };
+
+  function $(sel, root){ return (root||document).querySelector(sel); }
+  function $all(sel, root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
+  function escapeHtml(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){ return ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c]; }); }
+  function todayStr(){ var d=new Date(); return d.toISOString().slice(0,10); }
+  function fmtDate(iso){
+    if(!iso) return "";
+    var parts = iso.split("-");
+    var d = new Date(Number(parts[0]), Number(parts[1])-1, Number(parts[2]));
+    return d.toLocaleDateString(undefined,{month:"short",day:"numeric"});
+  }
+  function newId(){ return "s" + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+  function toast(msg){
+    var t = $("#toast");
+    t.textContent = msg;
+    t.hidden = false;
+    clearTimeout(toast._h);
+    toast._h = setTimeout(function(){ t.hidden = true; }, 2600);
+  }
+
+  // ---------- Firestore data layer ----------
+  // Each teacher's roster lives in Firestore (collection "students"), synced live
+  // across all of that teacher's devices. A one-time seed on first login copies
+  // that teacher's demo roster in from SEED_STUDENTS, tracked by a marker doc in
+  // "_meta" so it never re-seeds after real data (or a cleared roster) exists.
+  var unsubscribeSnapshot = null;
+
+  function saveStudent(s){
+    db.collection("students").doc(s.id).set(s).catch(function(e){
+      console.error("Save failed", e);
+      toast("Couldn't save — check your connection.");
+    });
+  }
+  function deleteStudentDoc(id){
+    db.collection("students").doc(id).delete().catch(function(e){
+      console.error("Delete failed", e);
+      toast("Couldn't delete — check your connection.");
+    });
+  }
+  function saveStudentsBatch(list){
+    var batch = db.batch();
+    list.forEach(function(s){ batch.set(db.collection("students").doc(s.id), s); });
+    batch.commit().catch(function(e){
+      console.error("Batch save failed", e);
+      toast("Couldn't save — check your connection.");
+    });
+  }
+  function deleteStudentsBatch(ids){
+    var batch = db.batch();
+    ids.forEach(function(id){ batch.delete(db.collection("students").doc(id)); });
+    batch.commit().catch(function(e){
+      console.error("Batch delete failed", e);
+      toast("Couldn't delete — check your connection.");
+    });
+  }
+
+  function ensureSeeded(teacherId){
+    var metaRef = db.collection("_meta").doc("seed_" + teacherId);
+    return metaRef.get().then(function(doc){
+      if(doc.exists) return;
+      var mine = SEED_STUDENTS.filter(function(s){ return s.teacher === teacherId; });
+      var batch = db.batch();
+      mine.forEach(function(s){ batch.set(db.collection("students").doc(s.id), s); });
+      batch.set(metaRef, { seededAt: new Date().toISOString(), count: mine.length });
+      return batch.commit();
+    }).catch(function(e){
+      console.error("Seeding failed", e);
+      toast("Couldn't set up your starting roster — check your connection.");
+    });
+  }
+
+  function startSync(teacherId){
+    if(unsubscribeSnapshot){ unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+    unsubscribeSnapshot = db.collection("students").where("teacher", "==", teacherId)
+      .onSnapshot(function(snapshot){
+        state.allStudents = snapshot.docs.map(function(d){
+          var data = d.data();
+          data.id = d.id;
+          return data;
+        });
+        refreshClass();
+      }, function(e){
+        console.error("Sync error", e);
+        toast("Live sync error — check your connection.");
+      });
+  }
+
+  // ---------- Header ----------
+  $("#dateTag").textContent = new Date().toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"});
+
+  function renderTeacherSwitch(){
+    var el = $("#teacherSwitch");
+    var t = TEACHERS.filter(function(t){ return t.id === state.teacher; })[0];
+    el.innerHTML = '<span class="teacher-current">' + escapeHtml(t ? t.name : "") + '</span>';
+  }
+
+  function renderPeriodTabs(){
+    var el = $("#periodTabs");
+    el.innerHTML = PERIODS.map(function(p){
+      return '<button class="period-tab'+(p===state.period?' active':'')+'" data-period="'+p+'" role="tab" aria-selected="'+(p===state.period)+'">Period '+p+'</button>';
+    }).join("");
+    $all(".period-tab", el).forEach(function(btn){
+      btn.addEventListener("click", function(){
+        state.period = btn.getAttribute("data-period");
+        try{ localStorage.setItem("wolverines_last_period", state.period); }catch(e){}
+        renderPeriodTabs();
+        refreshClass();
+      });
+    });
+  }
+
+  function updateClassHeader(){
+    var teacherName = TEACHERS.filter(function(t){ return t.id===state.teacher; })[0].name;
+    $("#classTitle").textContent = teacherName + " · Period " + state.period;
+    $("#classSub").textContent = "6th–8th grade · Westwood Middle School";
+    $("#summaryTitle").textContent = "Class snapshot — Period " + state.period;
+    $("#rosterDrawerSub").textContent = teacherName + " · Period " + state.period;
+  }
+
+  function refreshClass(){
+    updateClassHeader();
+    state.students = state.allStudents
+      .filter(function(s){ return s.teacher===state.teacher && s.period===state.period; })
+      .sort(function(a,b){ return (a.name||"").localeCompare(b.name||""); });
+    renderRoster();
+  }
+
+  function currentLevel(student, stdId){
+    var arr = (student.scores && student.scores[stdId]) || [];
+    if(arr.length === 0) return 0;
+    return arr[arr.length-1].score;
+  }
+
+  function renderRoster(){
+    var body = $("#rosterBody");
+    var empty = $("#emptyState");
+    var hasPlaceholder = state.students.some(function(s){ return s.placeholder; });
+    $("#placeholderBanner").hidden = !hasPlaceholder;
+
+    if(state.students.length === 0){
+      body.innerHTML = "";
+      empty.hidden = false;
+    } else {
+      empty.hidden = true;
+      body.innerHTML = state.students.map(function(s){
+        var stdCells = STANDARDS.map(function(std){
+          var lvl = currentLevel(s, std.id);
+          var count = (s.scores && s.scores[std.id] && s.scores[std.id].length) || 0;
+          var pillClass = lvl===0 ? "pill pill-empty pill-btn" : "pill lvl"+lvl+" pill-btn";
+          var label = lvl===0 ? "—" : (lvl + " · " + LEVEL_LABELS[lvl]);
+          return '<td class="col-std"><button class="'+pillClass+'" data-open-student="'+s.id+'" data-std="'+std.id+'">'+label+'</button>'
+            + (count>0 ? '<span class="std-count">'+count+' check'+(count===1?"":"s")+'</span>' : '') + '</td>';
+        }).join("");
+        return '<tr>'
+          + '<td class="col-name"><button class="student-link" data-open-student="'+s.id+'">'+escapeHtml(s.name)+'</button>'
+          + (s.placeholder ? '<span class="tag-demo">Demo</span>' : '') + '</td>'
+          + '<td><select class="grade-select" data-grade-for="'+s.id+'">'
+            + '<option value=""'+(!s.grade?" selected":"")+'>—</option>'
+            + [6,7,8].map(function(g){ return '<option value="'+g+'"'+(String(s.grade)===String(g)?" selected":"")+'>'+g+'th</option>'; }).join("")
+          + '</select></td>'
+          + stdCells
+          + '<td class="col-actions"><button class="row-remove" data-remove-student="'+s.id+'" title="Remove student">✕</button></td>'
+          + '</tr>';
+      }).join("");
+
+      $all("[data-open-student]", body).forEach(function(btn){
+        btn.addEventListener("click", function(){ openStudentDrawer(btn.getAttribute("data-open-student")); });
+      });
+      $all("[data-grade-for]", body).forEach(function(sel){
+        sel.addEventListener("change", function(){
+          var id = sel.getAttribute("data-grade-for");
+          var val = sel.value ? Number(sel.value) : null;
+          var s = state.allStudents.filter(function(x){ return x.id===id; })[0];
+          if(!s) return;
+          s.grade = val;
+          saveStudent(s);
+        });
+      });
+      $all("[data-remove-student]", body).forEach(function(btn){
+        btn.addEventListener("click", function(){
+          var id = btn.getAttribute("data-remove-student");
+          var s = state.students.filter(function(x){ return x.id===id; })[0];
+          if(!s) return;
+          if(!confirm('Remove "'+s.name+'" from this class? This deletes their score history too.')) return;
+          state.allStudents = state.allStudents.filter(function(x){ return x.id!==id; });
+          deleteStudentDoc(id);
+          toast("Removed "+s.name+".");
+          refreshClass();
+        });
+      });
+    }
+
+    renderSummary();
+    if(state.openStudentId){
+      var still = state.students.filter(function(s){ return s.id===state.openStudentId; })[0];
+      if(still){ renderStudentDrawer(still); } else { closeStudentDrawer(); }
+    }
+    if(!$("#rosterOverlay").hidden){ renderRosterManage(); }
+  }
+
+  function renderSummary(){
+    var total = state.students.length;
+    $("#summaryMuted").textContent = total + " student" + (total===1?"":"s");
+    var grid = $("#meterGrid");
+    grid.innerHTML = STANDARDS.map(function(std){
+      var counts = {0:0,1:0,2:0,3:0,4:0};
+      state.students.forEach(function(s){ counts[currentLevel(s,std.id)]++; });
+      var order = [0,1,2,3,4];
+      var segs = order.map(function(lvl){
+        var pct = total>0 ? (counts[lvl]/total*100) : (lvl===0?100:0);
+        if(pct<=0) return "";
+        var bg = lvl===0 ? "var(--lvl0-bg)" : "var(--lvl"+lvl+")";
+        return '<span class="meter-seg" style="width:'+pct.toFixed(2)+'%;background:'+bg+'" title="'+counts[lvl]+' '+LEVEL_LABELS[lvl]+'"></span>';
+      }).join("");
+      var atTarget = counts[3] + counts[4];
+      return '<div class="meter">'
+        + '<div class="meter-label"><span class="std-name">Std '+std.id+' · '+escapeHtml(std.short)+'</span>'
+        + '<span class="std-stat">'+atTarget+'/'+total+' at target+</span></div>'
+        + '<div class="meter-bar">'+segs+'</div>'
+        + '<div class="meter-legend">'
+          + '<span><span class="dot" style="background:var(--lvl0-bg)"></span>Not yet '+counts[0]+'</span>'
+          + '<span><span class="dot" style="background:var(--lvl1)"></span>Emerging '+counts[1]+'</span>'
+          + '<span><span class="dot" style="background:var(--lvl2)"></span>Developing '+counts[2]+'</span>'
+          + '<span><span class="dot" style="background:var(--lvl3)"></span>Proficient '+counts[3]+'</span>'
+          + '<span><span class="dot" style="background:var(--lvl4)"></span>Advanced '+counts[4]+'</span>'
+        + '</div>'
+      + '</div>';
+    }).join("");
+  }
+
+  // ---------- Student drawer ----------
+  function openStudentDrawer(id){
+    state.openStudentId = id;
+    var s = state.students.filter(function(x){ return x.id===id; })[0];
+    if(!s) return;
+    renderStudentDrawer(s);
+    $("#studentOverlay").hidden = false;
+  }
+  function closeStudentDrawer(){
+    $("#studentOverlay").hidden = true;
+    state.openStudentId = null;
+  }
+  $("#studentCloseBtn").addEventListener("click", closeStudentDrawer);
+  $("#studentOverlay").addEventListener("click", function(e){ if(e.target === e.currentTarget) closeStudentDrawer(); });
+
+  function renderStudentDrawer(s){
+    var teacherName = TEACHERS.filter(function(t){ return t.id===s.teacher; })[0].name;
+    $("#studentName").textContent = s.name;
+    $("#studentSub").textContent = teacherName + " · Period " + s.period + (s.grade ? " · " + s.grade + "th grade" : "");
+    var body = $("#studentBody");
+    var scrollTop = body.scrollTop;
+    body.innerHTML = STANDARDS.map(function(std){
+      var arr = (s.scores && s.scores[std.id]) || [];
+      var lvl = arr.length ? arr[arr.length-1].score : 0;
+      var history = arr.slice().reverse();
+      var historyHtml = history.length ? (
+        '<ul class="history-list">' + history.map(function(e, revIdx){
+          var idx = arr.length - 1 - revIdx;
+          return '<li><span class="pill small lvl'+e.score+'">'+e.score+'</span>'
+            + '<span class="hist-date">'+fmtDate(e.date)+'</span>'
+            + '<span class="hist-note">'+escapeHtml(e.note||"")+'</span>'
+            + '<button class="hist-remove" data-del-std="'+std.id+'" data-del-idx="'+idx+'" title="Remove this entry">✕</button></li>';
+        }).join("") + '</ul>'
+      ) : '<p class="no-history">No checks logged yet.</p>';
+
+      return '<div class="std-block" data-block-std="'+std.id+'">'
+        + '<div class="std-head-row"><span class="std-num">Standard '+std.id+'</span><h3>'+escapeHtml(std.short)+'</h3></div>'
+        + '<p class="std-full">'+escapeHtml(std.full)+'</p>'
+        + '<div class="std-current">Current: <span class="pill '+(lvl===0?'pill-empty':'lvl'+lvl)+'">'+(lvl===0?"Not yet assessed":lvl+" · "+LEVEL_LABELS[lvl])+'</span>'
+          + (arr.length ? '<span>last checked '+fmtDate(arr[arr.length-1].date)+'</span>' : '') + '</div>'
+        + '<div class="entry-row">'
+          + '<input type="text" class="note-input" data-note-for="'+std.id+'" placeholder="Optional note">'
+          + '<input type="date" class="date-input" data-date-for="'+std.id+'" value="'+todayStr()+'">'
+        + '</div>'
+        + '<div class="level-buttons">' + std.levels.map(function(l){
+            return '<button class="level-btn" data-score="'+l.score+'" data-log-std="'+std.id+'" title="'+escapeHtml(l.desc)+'">'+l.score+'<span>'+l.label+'</span></button>';
+          }).join("") + '</div>'
+        + '<div class="std-history">' + historyHtml + '</div>'
+      + '</div>';
+    }).join("");
+
+    $all("[data-log-std]", body).forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var stdId = btn.getAttribute("data-log-std");
+        var score = Number(btn.getAttribute("data-score"));
+        logEntry(s.id, stdId, score);
+      });
+    });
+    $all("[data-del-std]", body).forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var stdId = btn.getAttribute("data-del-std");
+        var idx = Number(btn.getAttribute("data-del-idx"));
+        removeEntry(s.id, stdId, idx);
+      });
+    });
+    body.scrollTop = scrollTop;
+  }
+
+  function logEntry(studentId, stdId, score){
+    var s = state.allStudents.filter(function(x){ return x.id===studentId; })[0];
+    if(!s) return;
+    var noteInput = $('[data-note-for="'+stdId+'"]');
+    var dateInput = $('[data-date-for="'+stdId+'"]');
+    var note = noteInput ? noteInput.value.trim() : "";
+    var date = (dateInput && dateInput.value) ? dateInput.value : todayStr();
+    if(!s.scores) s.scores = {"1":[],"2":[],"3":[],"4":[]};
+    if(!s.scores[stdId]) s.scores[stdId] = [];
+    s.scores[stdId].push({score:score, date:date, note:note});
+    saveStudent(s);
+    toast("Logged "+score+" for Standard "+stdId+".");
+    if(noteInput) noteInput.value = "";
+    refreshClass();
+  }
+
+  function removeEntry(studentId, stdId, idx){
+    var s = state.allStudents.filter(function(x){ return x.id===studentId; })[0];
+    if(!s || !s.scores || !s.scores[stdId]) return;
+    s.scores[stdId].splice(idx,1);
+    saveStudent(s);
+    toast("Entry removed.");
+    refreshClass();
+  }
+
+  // ---------- Roster management drawer ----------
+  $("#manageRosterBtn").addEventListener("click", openRosterDrawer);
+  $("#bannerManageBtn").addEventListener("click", openRosterDrawer);
+  function openRosterDrawer(){ renderRosterManage(); $("#rosterOverlay").hidden = false; }
+  function closeRosterDrawer(){ $("#rosterOverlay").hidden = true; }
+  $("#rosterCloseBtn").addEventListener("click", closeRosterDrawer);
+  $("#rosterOverlay").addEventListener("click", function(e){ if(e.target === e.currentTarget) closeRosterDrawer(); });
+
+  function renderRosterManage(){
+    $("#rosterCount").textContent = state.students.length;
+    var list = $("#rosterExistingList");
+    list.innerHTML = state.students.map(function(s){
+      return '<li><span>'+escapeHtml(s.name)+(s.placeholder?' <span class="tag-demo">Demo</span>':'')+'</span>'
+        + '<button class="row-remove" data-mgr-remove="'+s.id+'" title="Remove">✕</button></li>';
+    }).join("") || '<li class="no-history">No students yet.</li>';
+    $all("[data-mgr-remove]", list).forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var id = btn.getAttribute("data-mgr-remove");
+        var s = state.students.filter(function(x){ return x.id===id; })[0];
+        if(!s) return;
+        if(!confirm('Remove "'+s.name+'"?')) return;
+        state.allStudents = state.allStudents.filter(function(x){ return x.id!==id; });
+        deleteStudentDoc(id);
+        refreshClass();
+      });
+    });
+    var hasPlaceholder = state.students.some(function(s){ return s.placeholder; });
+    $("#clearPlaceholderBtn").disabled = !hasPlaceholder;
+  }
+
+  $("#pasteAddBtn").addEventListener("click", function(){
+    var raw = $("#pasteArea").value;
+    var names = raw.split("\n").map(function(n){ return n.trim(); }).filter(Boolean);
+    if(names.length === 0){ toast("Paste at least one name first."); return; }
+    var newStudents = names.map(function(name){
+      return { id:newId(), name:name, teacher:state.teacher, period:state.period, grade:null, placeholder:false, createdAt:new Date().toISOString(), scores:{"1":[],"2":[],"3":[],"4":[]} };
+    });
+    newStudents.forEach(function(s){ state.allStudents.push(s); });
+    saveStudentsBatch(newStudents);
+    toast("Added "+names.length+" student"+(names.length===1?"":"s")+".");
+    $("#pasteArea").value = "";
+    refreshClass();
+  });
+
+  $("#singleAddBtn").addEventListener("click", function(){
+    var name = $("#singleNameInput").value.trim();
+    if(!name){ toast("Enter a name first."); return; }
+    var grade = $("#singleGradeInput").value ? Number($("#singleGradeInput").value) : null;
+    var newStudent = { id:newId(), name:name, teacher:state.teacher, period:state.period, grade:grade, placeholder:false, createdAt:new Date().toISOString(), scores:{"1":[],"2":[],"3":[],"4":[]} };
+    state.allStudents.push(newStudent);
+    saveStudent(newStudent);
+    toast("Added "+name+".");
+    $("#singleNameInput").value=""; $("#singleGradeInput").value="";
+    refreshClass();
+  });
+
+  $("#clearPlaceholderBtn").addEventListener("click", function(){
+    var placeholders = state.students.filter(function(s){ return s.placeholder; });
+    if(placeholders.length === 0) return;
+    if(!confirm("Remove all "+placeholders.length+" demo students from this class? This can't be undone.")) return;
+    var ids = placeholders.map(function(s){ return s.id; });
+    state.allStudents = state.allStudents.filter(function(x){ return ids.indexOf(x.id)===-1; });
+    deleteStudentsBatch(ids);
+    toast("Cleared "+placeholders.length+" demo student"+(placeholders.length===1?"":"s")+".");
+    refreshClass();
+  });
+
+  // ---------- Rubric reference modal ----------
+  function renderRubricModal(){
+    $("#rubricBody").innerHTML = STANDARDS.map(function(std){
+      return '<div class="rubric-standard">'
+        + '<h3>Standard '+std.id+' — '+escapeHtml(std.short)+'</h3>'
+        + '<p class="std-full">'+escapeHtml(std.full)+'</p>'
+        + '<table class="rubric-table"><thead><tr><th>Score</th><th>Level</th><th>Performance description</th></tr></thead><tbody>'
+        + std.levels.slice().reverse().map(function(l){
+            return '<tr><td><span class="pill small lvl'+l.score+'">'+l.score+'</span></td>'
+              + '<td>'+l.label+(l.target?' <em>(target)</em>':'')+'</td>'
+              + '<td>'+escapeHtml(l.desc)+'</td></tr>';
+          }).join("")
+        + '</tbody></table>'
+      + '</div>';
+    }).join("");
+  }
+  $("#rubricBtn").addEventListener("click", function(){ renderRubricModal(); $("#rubricOverlay").hidden = false; });
+  $("#rubricCloseBtn").addEventListener("click", function(){ $("#rubricOverlay").hidden = true; });
+  $("#rubricOverlay").addEventListener("click", function(e){ if(e.target === e.currentTarget) $("#rubricOverlay").hidden = true; });
+
+  document.addEventListener("keydown", function(e){
+    if(e.key === "Escape"){
+      if(!$("#studentOverlay").hidden) closeStudentDrawer();
+      else if(!$("#rosterOverlay").hidden) closeRosterDrawer();
+      else if(!$("#rubricOverlay").hidden) $("#rubricOverlay").hidden = true;
+    }
+  });
+
+  // ---------- Init ----------
+  var savedPeriod = null;
+  try{ savedPeriod = localStorage.getItem("wolverines_last_period"); }catch(e){}
+  if(savedPeriod && PERIODS.indexOf(savedPeriod) !== -1) state.period = savedPeriod;
+
+  $("#loginLogo").src = $("#headerLogo").src;
+
+  function showApp(teacherId){
+    state.teacher = teacherId;
+    $("#loginScreen").hidden = true;
+    $("#app").hidden = false;
+    renderTeacherSwitch();
+    renderPeriodTabs();
+    ensureSeeded(teacherId).then(function(){ startSync(teacherId); });
+  }
+  function showLogin(errorMsg){
+    if(unsubscribeSnapshot){ unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+    $("#app").hidden = true;
+    $("#loginScreen").hidden = false;
+    var el = $("#loginError");
+    if(errorMsg){ el.textContent = errorMsg; el.hidden = false; }
+    else { el.hidden = true; }
+    var btn = $("#loginSubmitBtn");
+    btn.disabled = false; btn.textContent = "Sign in";
+  }
+
+  auth.onAuthStateChanged(function(user){
+    if(user){
+      var teacherId = EMAIL_TEACHER_MAP[(user.email || "").toLowerCase()];
+      if(!teacherId){
+        auth.signOut();
+        showLogin("This account isn't set up for the gradebook. Contact Mr. Radtke.");
+        return;
+      }
+      showApp(teacherId);
+    } else {
+      showLogin();
+    }
+  });
+
+  $("#loginForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    var email = $("#loginEmail").value.trim();
+    var pw = $("#loginPassword").value;
+    var btn = $("#loginSubmitBtn");
+    btn.disabled = true; btn.textContent = "Signing in…";
+    $("#loginError").hidden = true;
+    auth.signInWithEmailAndPassword(email, pw).catch(function(err){
+      var el = $("#loginError");
+      el.textContent = "Couldn't sign in — check your email and password.";
+      el.hidden = false;
+      btn.disabled = false; btn.textContent = "Sign in";
+    });
+  });
+
+  $("#logoutBtn").addEventListener("click", function(){ auth.signOut(); });
+})();
+</script>
+
+</body>
+</html>
