@@ -320,6 +320,10 @@
   .test-ranges{font-size:11px; color:var(--ink-soft); flex-basis:100%; margin-left:2px;}
   .ce-num{width:84px; text-align:center; padding:6px 8px; border:1px solid var(--border); border-radius:7px; background:var(--panel); color:var(--ink); font-size:14px; font-family:inherit;}
   .ce-lvl{min-width:30px; text-align:center;}
+  .ce-prev{font-size:11.5px; color:var(--ink-soft); min-width:92px;}
+  .round-cells{display:inline-flex; gap:6px; flex-wrap:wrap;}
+  .round-cell{font-size:12px; color:var(--ink-soft); border:1px solid var(--border); border-radius:6px; padding:2px 7px; font-variant-numeric:tabular-nums;}
+  .round-cell.best{border-color:var(--gold); background:var(--gold-soft); color:var(--ink); font-weight:700;}
 
   @media (max-width:640px){
     .topbar{padding:12px 14px;} .content{padding:16px 14px 40px;}
@@ -448,9 +452,14 @@
             <option value="pushups">Push-Ups</option>
             <option value="pacer">PACER</option>
           </select>
+          <select class="field" id="ceRound">
+            <option value="1">Round 1</option>
+            <option value="2">Round 2</option>
+            <option value="3">Round 3</option>
+          </select>
           <input type="date" id="ceTestDate">
         </div>
-        <p class="no-history">Type each student's score and press Enter to jump to the next student. The level appears as you type and saves automatically. Clearing a box removes that score.</p>
+        <p class="no-history">Pick the test and round, then type each student's score and press Enter to jump to the next student. The level appears as you type and saves automatically. Re-entering a round replaces it; clearing a box removes that round's score. Each student's <b>best</b> of the 3 rounds counts.</p>
       </div>
       <div class="roster-section" id="ceMarkSection" hidden>
         <h4>Date for marks</h4>
@@ -641,16 +650,30 @@
     if(!c) return "";
     return "1: ≤"+c[0]+" · 2: "+(c[0]+1)+"–"+c[1]+" · 3: "+(c[1]+1)+"–"+(c[2]-1)+" · 4: "+c[2]+"+";
   }
-  // most recent (by date) score for one test
+  // Each test is given up to 3 times (Round 1/2/3). Older entries without a round count as Round 1.
+  var ROUNDS = [1,2,3];
+  function roundOf(e){ return Number(e.round) || 1; }
+  function testEntries(student, testId){
+    return ((student.scores && student.scores["3"]) || []).filter(function(e){ return e.test === testId && typeof e.value === "number"; });
+  }
+  // the score for one test + round (most recent if somehow duplicated)
+  function roundEntry(student, testId, round){
+    var found = null;
+    testEntries(student, testId).forEach(function(e){
+      if(roundOf(e) !== round) return;
+      if(!found || (e.date||"") >= (found.date||"")) found = e;
+    });
+    return found;
+  }
+  // BEST score across all rounds for one test -- this is what counts toward the level
   function latestTest(student, testId){
     var best = null;
-    ((student.scores && student.scores["3"]) || []).forEach(function(e){
-      if(e.test !== testId || typeof e.value !== "number") return;
-      if(!best || (e.date||"") >= (best.date||"")) best = e;
+    testEntries(student, testId).forEach(function(e){
+      if(!best || e.value > best.value) best = e;
     });
     return best;
   }
-  // n = tests with a score entered; level = average of the tests that can be leveled, rounded to nearest
+  // n = tests with a score entered; level = average of each test's BEST-score level, rounded to nearest
   function fitnessSummary(student){
     var n = 0, sum = 0, counted = 0;
     FITNESS_TESTS.forEach(function(t){
@@ -676,7 +699,7 @@
   function $(sel, root){ return (root||document).querySelector(sel); }
   function $all(sel, root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
   function escapeHtml(s){ return String(s==null?"":s).replace(/[&<>"']/g, function(c){ return ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c]; }); }
-  function todayStr(){ var d=new Date(); return d.toISOString().slice(0,10); }
+  function todayStr(){ var d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
   function fmtDate(iso){
     if(!iso) return "";
     var parts = iso.split("-");
@@ -988,7 +1011,7 @@
           if(e.type){ lead = '<span class="chip chip-'+escapeHtml(e.type)+'">'+escapeHtml(markLabel(e.type))+'</span>'; }
           else if(e.test){
             var tl = testLevel(e.test, s.sex, s.grade, e.value);
-            lead = '<span class="chip chip-assign">'+escapeHtml(testName(e.test))+'</span>'
+            lead = '<span class="chip chip-assign">'+escapeHtml(testName(e.test))+' · R'+roundOf(e)+'</span>'
               + (tl ? '<span class="pill small lvl'+tl+'">'+tl+'</span>' : '<span class="pill small pill-empty">—</span>');
             noteText = e.value + ' ' + testUnit(e.test) + (noteText ? ' — ' + noteText : '');
           }
@@ -1024,14 +1047,23 @@
               var latest = latestTest(s, t.id);
               var tl = latest ? testLevel(t.id, s.sex, s.grade, latest.value) : 0;
               var rt = rangeText(t.id, s.sex, s.grade);
+              var bestMarked = false;
+              var cells = '<span class="round-cells">' + ROUNDS.map(function(r){
+                var re = roundEntry(s, t.id, r);
+                var isBest = !!(re && latest && re.value === latest.value && !bestMarked);
+                if(isBest) bestMarked = true;
+                return '<span class="round-cell'+(isBest?' best':'')+'" title="'+(re ? escapeHtml(fmtDate(re.date)) : 'not tested')+'">R'+r+': '+(re ? re.value : '–')+'</span>';
+              }).join("") + '</span>';
               return '<div class="test-row"><span class="chip chip-assign">'+escapeHtml(t.label)+'</span>'
-                + (latest ? '<b>'+latest.value+' '+t.unit+'</b>' + (tl ? '<span class="pill small lvl'+tl+'">'+tl+'</span>' : '') + '<span class="no-history">'+fmtDate(latest.date)+'</span>'
+                + cells
+                + (latest ? '<span class="no-history">best</span><b>'+latest.value+' '+t.unit+'</b>' + (tl ? '<span class="pill small lvl'+tl+'">'+tl+'</span>' : '')
                           : '<span class="no-history">not tested yet</span>')
                 + (rt ? '<span class="test-ranges">'+escapeHtml(rt)+'</span>' : '') + '</div>';
             }).join("")
-          + '<p class="no-history">Level = average of the three tests (most recent score for each), rounded to the nearest level.</p>';
+          + '<p class="no-history">Each test is given 3 times. Level = average of the three tests (best round for each), rounded to the nearest level.</p>';
         entryHtml = '<div class="entry-row">'
             + '<select class="field" data-test-sel>' + FITNESS_TESTS.map(function(t){ return '<option value="'+t.id+'">'+t.label+'</option>'; }).join("") + '</select>'
+            + '<select class="field" data-round-sel>' + ROUNDS.map(function(r){ return '<option value="'+r+'">Round '+r+'</option>'; }).join("") + '</select>'
             + '<input type="number" min="0" step="1" inputmode="numeric" class="note-input" data-test-val placeholder="Score">'
           + '</div>'
           + '<div class="entry-row">'
@@ -1168,25 +1200,26 @@
     refreshClass();
   }
 
-  // Add (or replace, when same test + same date) a fitness test score.
-  function putTest(s, testId, value, date, note){
+  // Add (or replace, when same test + same round) a fitness test score.
+  function putTest(s, testId, round, value, date, note){
     ensureScores(s);
-    s.scores["3"] = s.scores["3"].filter(function(e){ return !(e.test === testId && e.date === date); });
-    s.scores["3"].push({test:testId, value:value, date:date, note:note || ""});
+    s.scores["3"] = s.scores["3"].filter(function(e){ return !(e.test === testId && roundOf(e) === round); });
+    s.scores["3"].push({test:testId, round:round, value:value, date:date, note:note || ""});
   }
   function logTest(studentId){
     var s = state.allStudents.filter(function(x){ return x.id===studentId; })[0];
     if(!s) return;
     var testId = $("[data-test-sel]").value;
+    var round = Number($("[data-round-sel]").value) || 1;
     var raw = $("[data-test-val]").value.trim();
     var v = Number(raw);
     if(raw === "" || isNaN(v) || v < 0){ toast("Enter the test score first."); return; }
     v = Math.floor(v);
     var dateInput = $('[data-date-for="3"]'), noteInput = $('[data-note-for="3"]');
-    putTest(s, testId, v, (dateInput && dateInput.value) ? dateInput.value : todayStr(), noteInput ? noteInput.value.trim() : "");
+    putTest(s, testId, round, v, (dateInput && dateInput.value) ? dateInput.value : todayStr(), noteInput ? noteInput.value.trim() : "");
     saveStudent(s);
     var lvl = testLevel(testId, s.sex, s.grade, v);
-    toast(testName(testId)+": "+v+(lvl ? " (level "+lvl+")" : " — set grade & gender to see the level")+".");
+    toast(testName(testId)+" round "+round+": "+v+(lvl ? " (level "+lvl+")" : " — set grade & gender to see the level")+".");
     refreshClass();
   }
 
@@ -1200,7 +1233,7 @@
   }
 
   // ---------- Class entry drawer (score a whole class at once) ----------
-  var ceState = { std: "1", aid: "", test: "curlups" };
+  var ceState = { std: "1", aid: "", test: "curlups", round: 1 };
 
   function openClassEntry(){
     renderClassEntry();
@@ -1289,10 +1322,15 @@
     }).join("");
   }
 
-  function fitEntryFor(s, testId, date){
-    var arr = (s.scores && s.scores["3"]) || [], found = null;
-    arr.forEach(function(e){ if(e.test === testId && e.date === date) found = e; });
-    return found;
+  function fitEntryFor(s, testId, round){ return roundEntry(s, testId, round); }
+  function otherRoundsText(s, testId, round){
+    var parts = [];
+    ROUNDS.forEach(function(r){
+      if(r === round) return;
+      var e = roundEntry(s, testId, r);
+      if(e) parts.push("R"+r+": "+e.value);
+    });
+    return parts.join(" · ");
   }
   function lvlPill(l){ return l ? '<span class="pill small lvl'+l+'">'+l+'</span>' : '<span class="pill small pill-empty">—</span>'; }
   function studentReady(s){ return !!s.sex && Number(s.grade) >= 6 && Number(s.grade) <= 8; }
@@ -1301,11 +1339,12 @@
     var testId = ceState.test;
     var t = FITNESS_TESTS.filter(function(x){ return x.id === testId; })[0];
     if(!$("#ceTestDate").value) $("#ceTestDate").value = todayStr();
-    var date = $("#ceTestDate").value;
+    var round = ceState.round;
     $("#ceTest").value = testId;
-    $("#ceListTitle").textContent = "Students — " + t.label + " (" + t.unit + ")";
+    $("#ceRound").value = String(round);
+    $("#ceListTitle").textContent = "Students — " + t.label + ", Round " + round + " (" + t.unit + ")";
     if(!state.students.length){ list.innerHTML = '<p class="no-history">No students in this class yet.</p>'; list.removeAttribute("data-sig"); return; }
-    var sig = [testId, date].concat(state.students.map(function(s){ return s.id + (studentReady(s) ? "+" : "-"); })).join("|");
+    var sig = [testId, round].concat(state.students.map(function(s){ return s.id + (studentReady(s) ? "+" : "-"); })).join("|");
     if(list.getAttribute("data-sig") !== sig){
       list.setAttribute("data-sig", sig);
       list.innerHTML = state.students.map(function(s){
@@ -1313,6 +1352,7 @@
         return '<div class="ce-row"><span class="ce-name">'+escapeHtml(s.name)+'</span>'
           + (ready
             ? '<span class="ce-info">'+escapeHtml((s.sex==="girl"?"Girl":"Boy")+" · "+s.grade+"th")+'</span>'
+              + '<span class="ce-prev" data-prev-sid="'+escapeHtml(s.id)+'"></span>'
               + '<input type="number" min="0" step="1" inputmode="numeric" class="ce-num" data-sid="'+escapeHtml(s.id)+'" aria-label="'+escapeHtml(s.name)+' score">'
               + '<span class="ce-lvl" data-lvl-sid="'+escapeHtml(s.id)+'"></span>'
             : '<span class="ce-info warn">set grade &amp; gender in the roster</span>')
@@ -1324,8 +1364,10 @@
       if(!studentReady(s)) return;
       var inp = list.querySelector('input[data-sid="'+s.id+'"]');
       if(!inp) return;
-      var e = fitEntryFor(s, testId, date);
+      var e = fitEntryFor(s, testId, round);
       if(inp !== document.activeElement) inp.value = e ? e.value : "";
+      var prev = list.querySelector('[data-prev-sid="'+s.id+'"]');
+      if(prev) prev.textContent = otherRoundsText(s, testId, round);
       var holder = list.querySelector('[data-lvl-sid="'+s.id+'"]');
       var shown = inp.value === "" ? NaN : Number(inp.value);
       if(holder) holder.innerHTML = lvlPill(testLevel(testId, s.sex, s.grade, shown));
@@ -1337,13 +1379,15 @@
     if(!s) return;
     ensureScores(s);
     var date = $("#ceTestDate").value || todayStr();
+    var round = ceState.round;
     raw = String(raw).trim();
     if(raw === ""){
-      s.scores["3"] = ((s.scores && s.scores["3"]) || []).filter(function(e){ return !(e.test === ceState.test && e.date === date); });
+      s.scores["3"] = ((s.scores && s.scores["3"]) || []).filter(function(e){ return !(e.test === ceState.test && roundOf(e) === round); });
     } else {
       var v = Number(raw);
       if(isNaN(v) || v < 0){ toast("Scores must be 0 or more."); return; }
-      putTest(s, ceState.test, Math.floor(v), date, "");
+      var prevE = roundEntry(s, ceState.test, round);
+      putTest(s, ceState.test, round, Math.floor(v), date, (prevE && prevE.note) || "");
     }
     saveStudent(s);
     refreshClass();
@@ -1416,6 +1460,7 @@
     renderClassEntry();
   });
   $("#ceTest").addEventListener("change", function(){ ceState.test = $("#ceTest").value; renderClassEntry(); });
+  $("#ceRound").addEventListener("change", function(){ ceState.round = Number($("#ceRound").value) || 1; renderClassEntry(); });
   $("#ceTestDate").addEventListener("change", function(){ renderClassEntry(); });
   $("#ceList").addEventListener("input", function(e){
     var inp = e.target;
