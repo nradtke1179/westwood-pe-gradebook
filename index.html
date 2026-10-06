@@ -325,6 +325,38 @@
   .round-cell{font-size:12px; color:var(--ink-soft); border:1px solid var(--border); border-radius:6px; padding:2px 7px; font-variant-numeric:tabular-nums;}
   .round-cell.best{border-color:var(--gold); background:var(--gold-soft); color:var(--ink); font-weight:700;}
 
+  /* ---------- Seating chart ---------- */
+  .seat-section{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow); overflow:hidden;}
+  .seat-hint{margin:0; padding:10px 20px; font-size:13px; color:var(--ink-soft); background:var(--panel-alt); border-bottom:1px solid var(--border);}
+  .seat-hint.active{color:var(--gold-deep); font-weight:600;}
+  .seat-scroll{overflow-x:auto; padding:18px 20px 8px;}
+  .seat-grid{display:grid; grid-template-columns:repeat(8,minmax(76px,1fr)); gap:1px; background:var(--ink); border:2px solid var(--ink); min-width:640px;}
+  .seat-cell{position:relative; min-height:76px; background:var(--panel); border:none; border-radius:0; padding:6px 4px 20px;
+    display:flex; align-items:center; justify-content:center; text-align:center; font-size:12.5px; font-weight:600;
+    color:var(--ink); line-height:1.2; overflow-wrap:anywhere; font-family:inherit;}
+  .seat-cell.occupied{background:var(--gold-soft);}
+  .seat-cell:hover{filter:brightness(.97);}
+  .seat-cell.picked{box-shadow:inset 0 0 0 3px var(--gold-deep); background:var(--panel-alt);}
+  .seat-cell.target:not(.occupied):hover{background:var(--panel-alt);}
+  .seat-letter{position:absolute; bottom:4px; left:0; right:0; font-size:12px; font-weight:700; color:var(--ink); font-family:var(--font-display); letter-spacing:.04em;}
+  .seat-unseated{padding:10px 20px 18px; display:flex; flex-wrap:wrap; gap:6px; align-items:center;}
+  .seat-unseated .inline-lab{margin-right:4px;}
+  .seat-chip{border:1px dashed var(--border); background:var(--panel); color:var(--ink); border-radius:999px; padding:4px 11px; font-size:12.5px; font-weight:600;}
+  .seat-chip:hover{border-color:var(--gold-deep);}
+  .seat-chip.picked{border:2px solid var(--gold-deep); background:var(--gold-soft);}
+  .seat-print-title{display:none;}
+  @media print{
+    body.print-seating .topbar, body.print-seating .period-tabs, body.print-seating .class-summary,
+    body.print-seating .roster-panel, body.print-seating .seat-hint, body.print-seating .seat-toolbar,
+    body.print-seating .seat-unseated, body.print-seating .toast{display:none !important;}
+    body.print-seating, body.print-seating .seat-section, body.print-seating .seat-cell{background:#fff !important; color:#000 !important; box-shadow:none !important;}
+    body.print-seating .seat-section{border:none;}
+    body.print-seating .seat-print-title{display:block; font-family:var(--font-display); font-size:20px; margin:0 0 10px; color:#000;}
+    body.print-seating .seat-grid{background:#000; border-color:#000; min-width:0;}
+    body.print-seating .seat-cell{min-height:110px; font-size:14px;}
+    body.print-seating .seat-letter{color:#000;}
+  }
+
   @media (max-width:640px){
     .topbar{padding:12px 14px;} .content{padding:16px 14px 40px;}
     .period-tabs{padding:10px 14px 0;}
@@ -413,6 +445,28 @@
         <h3>No students in this class yet</h3>
         <p>Use “Manage roster” to paste in your class list.</p>
       </div>
+    </section>
+
+    <section class="seat-section" id="seatSection">
+      <div class="roster-toolbar seat-toolbar">
+        <div>
+          <h2 id="seatTitle">Seating chart</h2>
+          <span class="sub" id="seatSub"></span>
+        </div>
+        <div class="roster-actions">
+          <button class="btn" id="seatAutoBtn" type="button" hidden>Fill empty seats A–Z</button>
+          <button class="btn" id="seatUnseatBtn" type="button" hidden>Remove from seat</button>
+          <button class="btn danger" id="seatClearBtn" type="button" hidden>Clear chart</button>
+          <button class="btn" id="seatPrintBtn" type="button">Print</button>
+          <button class="btn primary" id="seatEditBtn" type="button">Edit seats</button>
+        </div>
+      </div>
+      <p class="seat-hint" id="seatHint"></p>
+      <div class="seat-scroll">
+        <h2 class="seat-print-title" id="seatPrintTitle"></h2>
+        <div class="seat-grid" id="seatGrid"></div>
+      </div>
+      <div class="seat-unseated" id="seatUnseated"></div>
     </section>
   </main>
 </div>
@@ -814,6 +868,7 @@
     $all(".period-tab", el).forEach(function(btn){
       btn.addEventListener("click", function(){
         state.period = btn.getAttribute("data-period");
+        seatUI.pick = null;
         try{ localStorage.setItem("wolverines_last_period", state.period); }catch(e){}
         renderPeriodTabs();
         refreshClass();
@@ -921,6 +976,7 @@
     }
 
     renderSummary();
+    renderSeating();
     if(state.openStudentId){
       var still = state.students.filter(function(s){ return s.id===state.openStudentId; })[0];
       if(still){ renderStudentDrawer(still); } else { closeStudentDrawer(); }
@@ -928,6 +984,134 @@
     if(!$("#rosterOverlay").hidden){ renderRosterManage(); }
     if(!$("#classEntryOverlay").hidden){ renderClassEntry(); }
   }
+
+  // ---------- Seating chart ----------
+  // 8 columns (W E S T W O O D, letters on the bottom row) x 5 rows. A student's spot is
+  // stored on their own doc as seat:"col-row" (col 0-7 left to right, row 0-4 top to bottom).
+  var SEAT_LETTERS = ["W","E","S","T","W","O","O","D"], SEAT_ROWS = 5;
+  var seatUI = { edit:false, pick:null };
+  function validSeat(k){ return typeof k === "string" && /^[0-7]-[0-4]$/.test(k); }
+  function seatMap(){
+    var byKey = {}, unseated = [];
+    state.students.forEach(function(s){
+      if(validSeat(s.seat) && !byKey[s.seat]) byKey[s.seat] = s; else unseated.push(s);
+    });
+    return { byKey:byKey, unseated:unseated };
+  }
+  function findStudent(id){ return state.allStudents.filter(function(x){ return x.id===id; })[0] || null; }
+
+  function renderSeating(){
+    var teacherName = TEACHERS.filter(function(t){ return t.id===state.teacher; })[0].name;
+    var m = seatMap();
+    if(seatUI.pick && !state.students.some(function(s){ return s.id===seatUI.pick; })) seatUI.pick = null;
+    var nSeated = state.students.length - m.unseated.length;
+    $("#seatTitle").textContent = "Seating chart — Period " + state.period;
+    $("#seatPrintTitle").textContent = teacherName + " · Period " + state.period + " · Seating chart";
+    $("#seatSub").textContent = nSeated + " seated" + (m.unseated.length ? " · " + m.unseated.length + " not seated yet" : "");
+    $("#seatEditBtn").textContent = seatUI.edit ? "Done" : "Edit seats";
+    $("#seatAutoBtn").hidden = !seatUI.edit;
+    $("#seatAutoBtn").disabled = !m.unseated.length;
+    $("#seatClearBtn").hidden = !seatUI.edit;
+    $("#seatClearBtn").disabled = !nSeated;
+    var picked = seatUI.pick ? findStudent(seatUI.pick) : null;
+    $("#seatUnseatBtn").hidden = !(seatUI.edit && picked && validSeat(picked.seat));
+
+    var hint = $("#seatHint");
+    if(!seatUI.edit){ hint.className = "seat-hint"; hint.textContent = "Tap a student to open their page. Use “Edit seats” to place or move students."; }
+    else if(picked){ hint.className = "seat-hint active"; hint.textContent = "Now tap a square for " + picked.name + " (tapping someone else's square swaps them)."; }
+    else { hint.className = "seat-hint"; hint.textContent = "Tap a student (in the chart or the list below), then tap the square they should move to."; }
+
+    var html = "";
+    for(var r=0; r<SEAT_ROWS; r++){
+      for(var c=0; c<SEAT_LETTERS.length; c++){
+        var key = c + "-" + r, occ = m.byKey[key];
+        var cls = "seat-cell" + (occ ? " occupied" : "") + (occ && occ.id===seatUI.pick ? " picked" : "") + (seatUI.edit && picked ? " target" : "");
+        html += '<button class="'+cls+'" data-seat="'+key+'" type="button" aria-label="'+escapeHtml(SEAT_LETTERS[c]+" column "+(c+1)+", row "+(r+1)+(occ ? ": "+occ.name : ": empty"))+'">'
+          + (occ ? escapeHtml(occ.name) : "")
+          + (r === SEAT_ROWS-1 ? '<span class="seat-letter">'+SEAT_LETTERS[c]+'</span>' : "")
+          + '</button>';
+      }
+    }
+    $("#seatGrid").innerHTML = html;
+
+    var un = $("#seatUnseated");
+    if(!m.unseated.length){ un.innerHTML = state.students.length ? "" : '<span class="no-history">No students in this class yet.</span>'; }
+    else {
+      un.innerHTML = '<span class="inline-lab">Not seated</span>' + m.unseated.map(function(s){
+        return '<button class="seat-chip'+(s.id===seatUI.pick?' picked':'')+'" data-unseated="'+escapeHtml(s.id)+'" type="button">'+escapeHtml(s.name)+'</button>';
+      }).join("");
+    }
+  }
+
+  function placeStudent(sid, key){
+    var mover = findStudent(sid);
+    if(!mover) return;
+    var occ = seatMap().byKey[key];
+    var from = validSeat(mover.seat) ? mover.seat : null;
+    var changed = [mover];
+    mover.seat = key;
+    if(occ && occ.id !== mover.id){ occ.seat = from; changed.push(occ); }
+    saveStudentsBatch(changed);
+    toast(occ && occ.id !== mover.id ? (from ? "Swapped " + mover.name + " and " + occ.name + "." : mover.name + " placed; " + occ.name + " moved to Not seated.") : mover.name + " placed.");
+  }
+
+  $("#seatSection").addEventListener("click", function(e){
+    var btn = e.target.closest("button");
+    if(!btn) return;
+    if(btn.hasAttribute("data-seat")){
+      var key = btn.getAttribute("data-seat");
+      var occ = seatMap().byKey[key];
+      if(!seatUI.edit){ if(occ) openStudentDrawer(occ.id); return; }
+      if(seatUI.pick){
+        if(occ && occ.id === seatUI.pick){ seatUI.pick = null; }
+        else { placeStudent(seatUI.pick, key); seatUI.pick = null; }
+      } else if(occ){ seatUI.pick = occ.id; }
+      renderSeating();
+    } else if(btn.hasAttribute("data-unseated")){
+      var sid = btn.getAttribute("data-unseated");
+      if(!seatUI.edit){ openStudentDrawer(sid); return; }
+      seatUI.pick = seatUI.pick === sid ? null : sid;
+      renderSeating();
+    }
+  });
+  $("#seatEditBtn").addEventListener("click", function(){ seatUI.edit = !seatUI.edit; seatUI.pick = null; renderSeating(); });
+  $("#seatUnseatBtn").addEventListener("click", function(){
+    var s = seatUI.pick ? findStudent(seatUI.pick) : null;
+    if(!s) return;
+    s.seat = null; saveStudent(s); seatUI.pick = null;
+    toast(s.name + " removed from their seat.");
+    renderSeating();
+  });
+  $("#seatAutoBtn").addEventListener("click", function(){
+    var m = seatMap();
+    var queue = m.unseated.slice(), changed = [];
+    // fill column by column (W, E, S, T...), starting from the letter row and working up
+    for(var c=0; c<SEAT_LETTERS.length && queue.length; c++){
+      for(var r=SEAT_ROWS-1; r>=0 && queue.length; r--){
+        var key = c + "-" + r;
+        if(m.byKey[key]) continue;
+        var s = queue.shift(); s.seat = key; changed.push(s);
+      }
+    }
+    if(changed.length){ saveStudentsBatch(changed); toast("Seated " + changed.length + " student" + (changed.length===1?"":"s") + "."); }
+    if(queue.length) toast("All 40 squares are full — " + queue.length + " still not seated.");
+    seatUI.pick = null;
+    renderSeating();
+  });
+  $("#seatClearBtn").addEventListener("click", function(){
+    var seated = state.students.filter(function(s){ return validSeat(s.seat); });
+    if(!seated.length) return;
+    if(!confirm("Clear the seating chart for Period " + state.period + "? Every student goes back to Not seated.")) return;
+    seated.forEach(function(s){ s.seat = null; });
+    saveStudentsBatch(seated);
+    seatUI.pick = null;
+    toast("Seating chart cleared.");
+    renderSeating();
+  });
+  $("#seatPrintBtn").addEventListener("click", function(){
+    document.body.classList.add("print-seating");
+    setTimeout(function(){ window.print(); document.body.classList.remove("print-seating"); }, 50);
+  });
 
   function renderSummary(){
     var total = state.students.length;
