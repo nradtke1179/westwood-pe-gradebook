@@ -325,6 +325,51 @@
   .round-cell{font-size:12px; color:var(--ink-soft); border:1px solid var(--border); border-radius:6px; padding:2px 7px; font-variant-numeric:tabular-nums;}
   .round-cell.best{border-color:var(--gold); background:var(--gold-soft); color:var(--ink); font-weight:700;}
 
+  /* ---------- Login extras ---------- */
+  .login-link{background:transparent; border:none; color:var(--gold-deep); font-size:13px; font-weight:600; padding:4px; text-decoration:underline;}
+  .login-info{color:var(--lvl3); font-size:13px; font-weight:600; margin:2px 0 0;}
+
+  /* ---------- View switch (Gradebook / Semester plan) ---------- */
+  .view-switch{display:flex; gap:6px; background:rgba(255,255,255,.06); padding:4px; border-radius:999px;}
+
+  /* ---------- Semester plan ---------- */
+  .plan-panel{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow); overflow:hidden;}
+  .plan-scroll{overflow-x:auto;}
+  table.plan-table{width:100%; border-collapse:collapse; min-width:860px; table-layout:fixed;}
+  .plan-table th{background:var(--black-panel); color:var(--gold); font-family:var(--font-display); font-weight:600; font-size:15px; letter-spacing:.03em; padding:9px 8px; border:1px solid var(--black-panel); text-align:center;}
+  .plan-table th.wk{width:96px;}
+  .plan-table th.del{width:34px;}
+  .plan-table td{border:1px solid var(--border); vertical-align:top; padding:0;}
+  .plan-table td.plan-wk{padding:8px; font-size:12.5px; font-weight:700; color:var(--ink); background:var(--panel-alt); white-space:nowrap;}
+  .plan-wk .wk-sub{display:block; font-weight:500; color:var(--ink-soft); font-size:11px; margin-top:2px;}
+  .plan-cell{display:block; width:100%; min-height:62px; height:100%; background:transparent; border:none; text-align:center; padding:8px 6px; font-size:12.5px; color:var(--ink); line-height:1.3; font-family:inherit;}
+  .plan-cell:hover{background:var(--panel-alt);}
+  .plan-cell .empty{color:var(--ink-soft); opacity:.5;}
+  .plan-cell .did{display:block; margin-top:6px; padding-top:5px; border-top:1px dashed var(--border); font-size:11.5px; font-style:italic; color:var(--lvl3); text-align:left;}
+  .plan-cell .did b{font-style:normal;}
+  td.noschool{background:var(--lvl0-bg);}
+  td.noschool .plan-cell{color:var(--ink-soft); font-weight:600;}
+  tr.this-week .plan-wk{background:var(--gold-soft); color:var(--gold-deep);}
+  td.today{box-shadow:inset 0 0 0 3px var(--gold);}
+  .plan-del{background:transparent; border:none; color:var(--ink-soft); font-size:13px; padding:6px; border-radius:6px;}
+  .plan-del:hover{color:var(--lvl1); background:var(--panel-alt);}
+  .plan-foot{display:flex; gap:10px; padding:14px 20px; flex-wrap:wrap; align-items:center; border-top:1px solid var(--border);}
+  .plan-edit-grid{display:flex; flex-direction:column; gap:10px;}
+  .plan-edit-grid label{font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--ink-soft);}
+  .plan-meta{font-size:12px; color:var(--ink-soft);}
+  @media print{
+    body.print-plan .topbar, body.print-plan .period-tabs, body.print-plan #gradebookView,
+    body.print-plan .plan-toolbar, body.print-plan .plan-foot, body.print-plan .plan-del,
+    body.print-plan th.del, body.print-plan td.del, body.print-plan .toast{display:none !important;}
+    body.print-plan, body.print-plan .plan-panel{background:#fff !important; box-shadow:none !important; border:none;}
+    body.print-plan .plan-table{min-width:0;}
+    body.print-plan .plan-table th{background:#fff; color:#000; border:1px solid #000;}
+    body.print-plan .plan-table td{border:1px solid #000;}
+    body.print-plan td.today, body.print-plan tr.this-week .plan-wk{box-shadow:none; background:transparent; color:#000;}
+    body.print-plan .plan-cell{min-height:0; font-size:10.5px; color:#000;}
+    body.print-plan .content{padding:0; max-width:none;}
+  }
+
   /* ---------- Seating chart ---------- */
   .seat-section{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow); overflow:hidden;}
   .seat-hint{margin:0; padding:10px 20px; font-size:13px; color:var(--ink-soft); background:var(--panel-alt); border-bottom:1px solid var(--border);}
@@ -377,6 +422,8 @@
       <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password" required>
       <button type="submit" class="btn primary" id="loginSubmitBtn">Sign in</button>
       <p class="login-error" id="loginError" hidden></p>
+      <p class="login-info" id="loginInfo" hidden></p>
+      <button type="button" class="login-link" id="forgotBtn">Forgot password?</button>
     </form>
   </div>
 </div>
@@ -391,6 +438,10 @@
       </div>
     </div>
     <div class="teacher-switch" id="teacherSwitch"></div>
+    <div class="view-switch" role="tablist" aria-label="Choose view">
+      <button class="teacher-btn active" data-view="gradebook" type="button">Gradebook</button>
+      <button class="teacher-btn" data-view="plan" type="button">Semester plan</button>
+    </div>
     <div class="topbar-right">
       <span class="date-tag" id="dateTag"></span>
       <button class="rubric-btn" id="rubricBtn" type="button">Standards &amp; rubrics</button>
@@ -400,7 +451,7 @@
 
   <nav class="period-tabs" id="periodTabs" role="tablist" aria-label="Select class period"></nav>
 
-  <main class="content">
+  <main class="content" id="gradebookView">
     <section class="class-summary">
       <div class="summary-head">
         <h2 id="summaryTitle">Class snapshot</h2>
@@ -469,6 +520,52 @@
       <div class="seat-unseated" id="seatUnseated"></div>
     </section>
   </main>
+
+  <main class="content" id="planView" hidden>
+    <section class="plan-panel">
+      <div class="roster-toolbar plan-toolbar">
+        <div>
+          <h2>Semester plan</h2>
+          <span class="sub">Shared with Mr. Radtke &amp; Mrs. Perkins · tap any day to edit the plan or add what you actually did</span>
+        </div>
+        <div class="roster-actions">
+          <button class="btn" id="planJumpBtn" type="button">This week</button>
+          <button class="btn" id="planPrintBtn" type="button">Print</button>
+        </div>
+      </div>
+      <div class="plan-scroll">
+        <table class="plan-table">
+          <thead><tr><th class="wk">Week of</th><th>Monday</th><th>Tuesday</th><th>Wednesday</th><th>Thursday</th><th>Friday</th><th class="del"></th></tr></thead>
+          <tbody id="planBody"></tbody>
+        </table>
+      </div>
+      <div class="plan-foot">
+        <button class="btn" id="planAddWeekBtn" type="button">＋ Add a week</button>
+        <span class="plan-meta" id="planMeta"></span>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="modal-overlay" id="planEditOverlay" hidden>
+  <div class="modal" style="max-width:520px">
+    <div class="modal-head">
+      <div><h2 id="planEditTitle">Edit day</h2><div class="plan-meta" id="planEditMeta"></div></div>
+      <button class="drawer-close" id="planEditClose" type="button" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="plan-edit-grid">
+        <label for="planEditPlan">Plan</label>
+        <textarea id="planEditPlan" placeholder="e.g. Volleyball, Bump/Set   (type “No School” to gray the day out)"></textarea>
+        <label for="planEditDid">What we actually did</label>
+        <textarea id="planEditDid" placeholder="Leave blank if it went as planned. Note changes here (weather, assembly, ran long…)"></textarea>
+        <div class="entry-row">
+          <button class="btn primary" id="planEditSave" type="button">Save</button>
+          <button class="btn subtle" id="planEditCancel" type="button">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="overlay" id="classEntryOverlay" hidden>
@@ -1796,11 +1893,139 @@
 
   document.addEventListener("keydown", function(e){
     if(e.key === "Escape"){
-      if(!$("#studentOverlay").hidden) closeStudentDrawer();
+      if(!$("#planEditOverlay").hidden) closePlanEdit();
+      else if(!$("#studentOverlay").hidden) closeStudentDrawer();
       else if(!$("#classEntryOverlay").hidden) closeClassEntry();
       else if(!$("#rosterOverlay").hidden) closeRosterDrawer();
       else if(!$("#rubricOverlay").hidden) $("#rubricOverlay").hidden = true;
     }
+  });
+
+  // ---------- Semester plan (shared by both teachers) ----------
+  // Firestore collection "plan": one doc per week, id "w-YYYY-MM-DD" (the Monday):
+  // { weekOf, days:{ mon:{plan, did, by, at}, tue:{...}, ... } }. Not filtered by teacher.
+  var PLAN_SEED = [{"weekOf": "2026-08-24", "days": ["No School", "PBIS Intro", "PE Expectations - Walking Laps", "Rubric Assignment", "PE Grade Contract - VBalls and BBalls"]}, {"weekOf": "2026-08-31", "days": ["Labor Day - No School", "Locks - BBalls and VBalls", "Attendance Spots - VBalls and BBalls", "Choices - Sprout Ball Volleyball", "Long Ball"]}, {"weekOf": "2026-09-07", "days": ["Kickball Outside", "Kickball Outside", "Kickball Outside", "Kickball Outside", "Picture Day, BBalls and VBalls"]}, {"weekOf": "2026-09-14", "days": ["Intro Nitro Ball", "Nitro Ball", "Nitro Ball", "Nitro Ball", "Nitro Ball"]}, {"weekOf": "2026-09-21", "days": ["Options - Nitro Ball, Basketball, Walk", "Options - Nitro Ball, Basketball, Walk", "Options - Nitro Ball, Basketball, Walk", "Options - Nitro Ball, Basketball, Walk", "VBalls and BBalls"]}, {"weekOf": "2026-09-28", "days": ["Indoor Soccer", "Indoor Soccer", "Indoor Soccer", "Indoor Soccer", "Fund Run"]}, {"weekOf": "2026-10-05", "days": ["Talk about Fitness Testing, VBalls and BBalls", "Curl Ups and Push Ups", "PACER", "PackBall", "PLD Day - No School"]}, {"weekOf": "2026-10-12", "days": ["Pin Down Kickball", "Pin Down Kickball", "Pin Down Kickball", "Pin Down Kickball", "Pin Down Kickball"]}, {"weekOf": "2026-10-19", "days": ["Volleyball, Bump/Set", "Volleyball, Bump/Set", "Volleyball, intro Serve, Spider Serves Game", "Volleyball, start game play, Kings Court", "Volleyball, continue Kings Court"]}, {"weekOf": "2026-10-26", "days": ["Volleyball", "Volleyball", "Volleyball", "Volleyball", "Garland Theatre BBalls and VBalls"]}, {"weekOf": "2026-11-02", "days": ["Pack Ball", "Pack Ball", "Pack Ball", "Pack Ball", "Pack Ball"]}, {"weekOf": "2026-11-09", "days": ["No School", "No School", "Fitness Testing #2 Curl Ups and Push Ups, PE Conference Slide", "Fitness Testing #2 PACER", "Long Ball"]}, {"weekOf": "2026-11-16", "days": ["3v3 Basketball Games", "3v3 Basketball Games", "3v3 Basketball Games", "3v3 Basketball Games", "3v3 Basketball Games"]}, {"weekOf": "2026-11-23", "days": ["Conferences", "Conferences", "Thanksgiving", "Thanksgiving", "Thanksgiving"]}, {"weekOf": "2026-11-30", "days": ["Intro Badminton - Serves & Rally", "2v2, 1 rotates out", "Radtke - 4 Square Badminton, Perkins - Table Ball", "Radtke - Table Ball, Perkins - 4 Square Badminton", "Badminton"]}, {"weekOf": "2026-12-07", "days": ["Radtke - Intro Rules & Game Play, Perkins - Intro Packball", "Radtke - Packball, Perkins Intro Rules & Game Play", "Start Class Tournaments - Round Robin", "Class Tournaments - Round Robin", "Badminton"]}, {"weekOf": "2026-12-14", "days": ["Start Class Double Elimination Tournament", "Finish Class Double Elimination Tournament", "Wind Storm - No School", "Long Ball - Kick Ball", "BBalls and VBalls - Spirit Assembly & Social Hour"]}, {"weekOf": "2026-12-21", "days": ["Christmas Break", "Christmas Break", "Christmas Break", "Christmas Break", "Christmas Break"]}, {"weekOf": "2026-12-28", "days": ["Christmas Break", "Christmas Break", "Christmas Break", "Christmas Break", "Christmas Break"]}, {"weekOf": "2027-01-04", "days": ["Pickleball", "Pickleball", "Pickleball", "Pickleball", "Pickleball"]}, {"weekOf": "2027-01-11", "days": ["Pickleball", "Pickleball", "Pickleball", "Pickleball", "Pickleball"]}, {"weekOf": "2027-01-18", "days": ["No School", "Curl Ups - Push Ups", "PACER", "Clean Out Lockers", "Clean Out Lockers"]}];
+  var DAY_KEYS = ["mon","tue","wed","thu","fri"];
+  var DAY_NAMES = ["Monday","Tuesday","Wednesday","Thursday","Friday"];
+  var planWeeks = [];
+  var planEditing = null; // {id, day}
+  var currentView = "gradebook";
+
+  function teacherName(id){ var t = TEACHERS.filter(function(x){ return x.id===id; })[0]; return t ? t.name : ""; }
+  function parseISO(iso){ var p = iso.split("-"); return new Date(Number(p[0]), Number(p[1])-1, Number(p[2])); }
+  function isoOf(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+  function addDays(iso, n){ var d = parseISO(iso); d.setDate(d.getDate()+n); return isoOf(d); }
+  function mondayOf(iso){ var d = parseISO(iso); var dow = (d.getDay()+6)%7; d.setDate(d.getDate()-dow); return isoOf(d); }
+  function md(iso){ var d = parseISO(iso); return (d.getMonth()+1)+"/"+d.getDate(); }
+  function isNoSchool(text){ return /no school|break|thanksgiving/i.test(text || ""); }
+
+  function ensurePlanSeeded(){
+    var metaRef = db.collection("_meta").doc("plan_seed");
+    return metaRef.get().then(function(doc){
+      if(doc.exists) return;
+      var batch = db.batch();
+      PLAN_SEED.forEach(function(w){
+        var days = {};
+        w.days.forEach(function(t, i){ days[DAY_KEYS[i]] = { plan:t, did:"" }; });
+        batch.set(db.collection("plan").doc("w-"+w.weekOf), { weekOf:w.weekOf, days:days });
+      });
+      batch.set(metaRef, { seededAt:new Date().toISOString(), from:"2025-26 plan, shifted to 2026-27 weeks" });
+      return batch.commit();
+    }).catch(function(e){ console.error("Plan seed failed", e); });
+  }
+
+  function startPlanSync(){
+    return db.collection("plan").onSnapshot(function(snap){
+      planWeeks = snap.docs.map(function(d){ var x = d.data(); x.id = d.id; return x; })
+        .sort(function(a,b){ return a.weekOf < b.weekOf ? -1 : a.weekOf > b.weekOf ? 1 : 0; });
+      renderPlan();
+    }, function(e){ console.error("Plan sync error", e); toast("Live sync error — check your connection."); });
+  }
+
+  function renderPlan(){
+    if(currentView !== "plan") return;
+    var today = todayStr(), thisMon = mondayOf(today);
+    $("#planBody").innerHTML = planWeeks.map(function(w){
+      var cells = DAY_KEYS.map(function(k, i){
+        var d = (w.days && w.days[k]) || {};
+        var date = addDays(w.weekOf, i);
+        var cls = (isNoSchool(d.plan) ? "noschool" : "") + (date === today ? " today" : "");
+        return '<td class="'+cls+'"><button class="plan-cell" data-plan-week="'+escapeHtml(w.id)+'" data-plan-day="'+k+'" type="button" title="'+escapeHtml(DAY_NAMES[i]+" "+md(date))+'">'
+          + (d.plan ? escapeHtml(d.plan) : '<span class="empty">＋</span>')
+          + (d.did ? '<span class="did"><b>Did:</b> '+escapeHtml(d.did)+'</span>' : '')
+          + '</button></td>';
+      }).join("");
+      return '<tr'+(w.weekOf===thisMon?' class="this-week" id="planThisWeek"':'')+'>'
+        + '<td class="plan-wk">'+md(w.weekOf)+' – '+md(addDays(w.weekOf,4))+(w.weekOf===thisMon?'<span class="wk-sub">This week</span>':'')+'</td>'
+        + cells
+        + '<td class="del"><button class="plan-del" data-plan-del="'+escapeHtml(w.id)+'" title="Remove this week" type="button">✕</button></td></tr>';
+    }).join("") || '<tr><td colspan="7" class="empty-state">No weeks yet — tap “Add a week”.</td></tr>';
+    $("#planMeta").textContent = planWeeks.length ? planWeeks.length + " weeks · " + md(planWeeks[0].weekOf) + " to " + md(addDays(planWeeks[planWeeks.length-1].weekOf,4)) : "";
+  }
+
+  function setView(v){
+    currentView = v;
+    $all("[data-view]").forEach(function(b){ b.classList.toggle("active", b.getAttribute("data-view")===v); });
+    $("#gradebookView").hidden = v !== "gradebook";
+    $("#periodTabs").hidden = v !== "gradebook";
+    $("#planView").hidden = v !== "plan";
+    try{ localStorage.setItem("wolverines_view", v); }catch(e){}
+    if(v === "plan"){ renderPlan(); jumpToThisWeek(); }
+  }
+  function jumpToThisWeek(){
+    var row = $("#planThisWeek");
+    if(row) setTimeout(function(){ row.scrollIntoView({block:"center"}); }, 30);
+  }
+  $all("[data-view]").forEach(function(b){ b.addEventListener("click", function(){ setView(b.getAttribute("data-view")); }); });
+  $("#planJumpBtn").addEventListener("click", function(){ if(!$("#planThisWeek")) toast("This week isn't in the plan yet."); jumpToThisWeek(); });
+  $("#planPrintBtn").addEventListener("click", function(){
+    document.body.classList.add("print-plan");
+    setTimeout(function(){ window.print(); document.body.classList.remove("print-plan"); }, 50);
+  });
+
+  function openPlanEdit(id, day){
+    var w = planWeeks.filter(function(x){ return x.id===id; })[0];
+    if(!w) return;
+    var i = DAY_KEYS.indexOf(day), d = (w.days && w.days[day]) || {};
+    planEditing = { id:id, day:day };
+    $("#planEditTitle").textContent = DAY_NAMES[i] + " " + md(addDays(w.weekOf, i));
+    $("#planEditMeta").textContent = d.by ? "Last edited by " + teacherName(d.by) + (d.at ? " · " + fmtDate(d.at.slice(0,10)) : "") : "";
+    $("#planEditPlan").value = d.plan || "";
+    $("#planEditDid").value = d.did || "";
+    $("#planEditOverlay").hidden = false;
+    $("#planEditPlan").focus();
+  }
+  function closePlanEdit(){ $("#planEditOverlay").hidden = true; planEditing = null; }
+  function savePlanEdit(){
+    if(!planEditing) return;
+    var upd = { days:{} };
+    upd.days[planEditing.day] = { plan:$("#planEditPlan").value.trim(), did:$("#planEditDid").value.trim(), by:state.teacher, at:new Date().toISOString() };
+    db.collection("plan").doc(planEditing.id).set(upd, { merge:true }).catch(function(e){
+      console.error("Plan save failed", e); toast("Couldn't save — check your connection.");
+    });
+    closePlanEdit();
+    toast("Saved.");
+  }
+  $("#planBody").addEventListener("click", function(e){
+    var btn = e.target.closest("button");
+    if(!btn) return;
+    if(btn.hasAttribute("data-plan-week")) openPlanEdit(btn.getAttribute("data-plan-week"), btn.getAttribute("data-plan-day"));
+    else if(btn.hasAttribute("data-plan-del")){
+      var w = planWeeks.filter(function(x){ return x.id===btn.getAttribute("data-plan-del"); })[0];
+      if(!w || !confirm("Remove the week of " + md(w.weekOf) + " from the plan (for both of you)?")) return;
+      db.collection("plan").doc(w.id).delete().catch(function(e){ console.error(e); toast("Couldn't delete — check your connection."); });
+    }
+  });
+  $("#planEditSave").addEventListener("click", savePlanEdit);
+  $("#planEditCancel").addEventListener("click", closePlanEdit);
+  $("#planEditClose").addEventListener("click", closePlanEdit);
+  $("#planEditOverlay").addEventListener("click", function(e){ if(e.target === e.currentTarget) closePlanEdit(); });
+  $("#planEditOverlay").addEventListener("keydown", function(e){ if(e.key === "Enter" && (e.metaKey || e.ctrlKey)) savePlanEdit(); });
+  $("#planAddWeekBtn").addEventListener("click", function(){
+    var next = planWeeks.length ? addDays(planWeeks[planWeeks.length-1].weekOf, 7) : mondayOf(todayStr());
+    var days = {}; DAY_KEYS.forEach(function(k){ days[k] = { plan:"", did:"" }; });
+    db.collection("plan").doc("w-"+next).set({ weekOf:next, days:days }).catch(function(e){ console.error(e); toast("Couldn't add — check your connection."); });
+    toast("Added the week of " + md(next) + ".");
   });
 
   // ---------- Init ----------
@@ -1817,9 +2042,17 @@
     renderTeacherSwitch();
     renderPeriodTabs();
     ensureSeeded(teacherId).then(function(){ startSync(teacherId); });
+    if(unsubscribePlan) unsubscribePlan();
+    unsubscribePlan = null;
+    ensurePlanSeeded().then(function(){ unsubscribePlan = startPlanSync(); });
+    var savedView = null;
+    try{ savedView = localStorage.getItem("wolverines_view"); }catch(e){}
+    setView(savedView === "plan" ? "plan" : "gradebook");
   }
+  var unsubscribePlan = null;
   function showLogin(errorMsg){
     if(unsubscribeSnapshot){ unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+    if(unsubscribePlan){ unsubscribePlan(); unsubscribePlan = null; }
     $("#app").hidden = true;
     $("#loginScreen").hidden = false;
     var el = $("#loginError");
@@ -1859,6 +2092,22 @@
   });
 
   $("#logoutBtn").addEventListener("click", function(){ auth.signOut(); });
+
+  $("#forgotBtn").addEventListener("click", function(){
+    var email = $("#loginEmail").value.trim().toLowerCase();
+    var err = $("#loginError"), info = $("#loginInfo");
+    err.hidden = true; info.hidden = true;
+    if(!email){ err.textContent = "Type your school email above first, then tap “Forgot password?” again."; err.hidden = false; $("#loginEmail").focus(); return; }
+    if(!EMAIL_TEACHER_MAP[email]){ err.textContent = "That email isn't set up for the gradebook. Contact Mr. Radtke."; err.hidden = false; return; }
+    auth.sendPasswordResetEmail(email).then(function(){
+      info.textContent = "Reset link sent to " + email + ". Check your inbox (and spam) — it comes from noreply@westwood-pe-gradebook-336d6.firebaseapp.com.";
+      info.hidden = false;
+    }).catch(function(e){
+      console.error("Reset failed", e);
+      err.textContent = "Couldn't send the reset email — try again in a minute.";
+      err.hidden = false;
+    });
+  });
 })();
 </script>
 
