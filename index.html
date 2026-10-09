@@ -131,7 +131,7 @@
   .btn:disabled{opacity:.5; cursor:not-allowed;}
 
   .table-scroll{overflow-x:auto;}
-  table.roster-table{width:100%; border-collapse:collapse; min-width:840px;}
+  table.roster-table{width:100%; border-collapse:collapse; min-width:930px;}
   .roster-table thead th{
     text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em;
     color:var(--ink-soft); font-weight:700; padding:10px 14px; border-bottom:1px solid var(--border);
@@ -402,6 +402,38 @@
     body.print-seating .seat-letter{color:#000;}
   }
 
+
+  /* ---------- Attendance ---------- */
+  .chip-absent{background:var(--lvl1); color:#fff; border-color:var(--lvl1);}
+  .chip-tardy{background:var(--lvl2); color:#fff; border-color:var(--lvl2);}
+  .att-btn{border-radius:8px; padding:6px 13px; font-size:12.5px; font-weight:700; border:1px solid var(--border); background:var(--panel); color:var(--ink-soft); white-space:nowrap;}
+  .att-btn:hover{border-color:var(--gold-deep); color:var(--ink);}
+  .att-btn.absent.on{background:var(--lvl1); border-color:var(--lvl1); color:#fff;}
+  .att-btn.tardy.on{background:var(--lvl2); border-color:var(--lvl2); color:#fff;}
+  .att-sum{background:transparent; border:none; font-size:12.5px; font-weight:600; color:var(--ink); padding:3px 6px; border-radius:6px; font-variant-numeric:tabular-nums; white-space:nowrap;}
+  .att-sum:hover{background:var(--panel-alt);}
+  .att-sum .a{color:var(--lvl1);} .att-sum .t{color:var(--lvl2);}
+  .att-sum.none{color:var(--ink-soft); font-weight:500; opacity:.6;}
+  .att-date-row{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+  .att-date-row input[type=date]{flex:1; min-width:140px;}
+  .att-summary{font-size:13px; margin:0; padding:10px 12px; border-radius:var(--radius-md); background:var(--panel-alt); border:1px solid var(--border);}
+  .att-summary b.a{color:var(--lvl1);} .att-summary b.t{color:var(--lvl2);}
+  .att-block .att-totals{font-size:13px; color:var(--ink-soft);}
+  .att-block .att-totals b{color:var(--ink); font-size:15px;}
+  .seat-cell.att-absent{background:#F3D6D1; box-shadow:inset 0 0 0 3px var(--lvl1);}
+  .seat-cell.att-tardy{background:#F5E0BE; box-shadow:inset 0 0 0 3px var(--lvl2);}
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) .seat-cell.att-absent{background:#4A2420;}
+    :root:not([data-theme="light"]) .seat-cell.att-tardy{background:#4A3515;}
+  }
+  :root[data-theme="dark"] .seat-cell.att-absent{background:#4A2420;}
+  :root[data-theme="dark"] .seat-cell.att-tardy{background:#4A3515;}
+  .seat-flag{position:absolute; top:4px; right:5px; font-size:10px; font-weight:800; letter-spacing:.03em; color:var(--lvl1);}
+  .seat-cell.att-tardy .seat-flag{color:var(--lvl2);}
+  .seat-chip.att-absent{background:#F3D6D1; border:2px solid var(--lvl1);}
+  .seat-chip.att-tardy{background:#F5E0BE; border:2px solid var(--lvl2);}
+  .seat-date{padding:6px 9px; font-size:13px;}
+
   @media (max-width:640px){
     .topbar{padding:12px 14px;} .content{padding:16px 14px 40px;}
     .period-tabs{padding:10px 14px 0;}
@@ -471,6 +503,7 @@
           <span class="sub" id="classSub"></span>
         </div>
         <div class="roster-actions">
+          <button class="btn" id="attBtn" type="button">Attendance</button>
           <button class="btn primary" id="classEntryBtn" type="button">Class entry</button>
           <button class="btn" id="manageRosterBtn" type="button">Manage roster</button>
         </div>
@@ -486,6 +519,7 @@
               <th class="col-std">Std 2 · Strategy</th>
               <th class="col-std">Std 3 · Fitness</th>
               <th class="col-std">Std 4 · Responsibility</th>
+              <th class="col-std">Absent / Tardy</th>
               <th></th>
             </tr>
           </thead>
@@ -508,6 +542,8 @@
           <button class="btn" id="seatAutoBtn" type="button" hidden>Fill empty seats A–Z</button>
           <button class="btn" id="seatUnseatBtn" type="button" hidden>Remove from seat</button>
           <button class="btn danger" id="seatClearBtn" type="button" hidden>Clear chart</button>
+          <input type="date" class="seat-date" id="seatAttDate" hidden aria-label="Attendance date">
+          <button class="btn" id="seatAttBtn" type="button">Take attendance</button>
           <button class="btn" id="seatPrintBtn" type="button">Print</button>
           <button class="btn primary" id="seatEditBtn" type="button">Edit seats</button>
         </div>
@@ -620,6 +656,35 @@
       <div class="roster-section">
         <h4 id="ceListTitle">Students</h4>
         <div class="ce-list" id="ceList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="attOverlay" hidden>
+  <div class="drawer wide" id="attDrawer">
+    <div class="drawer-head">
+      <div>
+        <h2>Attendance</h2>
+        <div class="sub" id="attSub"></div>
+      </div>
+      <button class="drawer-close" id="attCloseBtn" type="button" aria-label="Close">✕</button>
+    </div>
+    <div class="drawer-body">
+      <div class="roster-section">
+        <h4>Date</h4>
+        <div class="att-date-row">
+          <button class="btn" id="attPrev" type="button" aria-label="Previous day">‹</button>
+          <input type="date" id="attDate">
+          <button class="btn" id="attNext" type="button" aria-label="Next day">›</button>
+          <button class="btn subtle" id="attToday" type="button">Today</button>
+        </div>
+        <p class="no-history">Everyone counts as present. Just tap <b>Absent</b> or <b>Tardy</b> for the students who aren't there on time; tap again to undo. This is your own tally; Skyward is still the official record.</p>
+      </div>
+      <p class="att-summary" id="attSummary"></p>
+      <div class="roster-section">
+        <h4>Students <span class="no-history" style="text-transform:none; letter-spacing:0; font-weight:500;">(totals so far in parentheses)</span></h4>
+        <div class="ce-list" id="attList"></div>
       </div>
     </div>
   </div>
@@ -1038,6 +1103,7 @@
             + '<option value="girl"'+(s.sex==="girl"?" selected":"")+'>Girl</option>'
           + '</select></td>'
           + stdCells
+          + '<td class="col-std">' + attSumHtml(s) + '</td>'
           + '<td class="col-actions"><button class="row-remove" data-remove-student="'+s.id+'" title="Remove student">✕</button></td>'
           + '</tr>';
       }).join("");
@@ -1080,13 +1146,130 @@
     }
     if(!$("#rosterOverlay").hidden){ renderRosterManage(); }
     if(!$("#classEntryOverlay").hidden){ renderClassEntry(); }
+    if(!$("#attOverlay").hidden){ renderAttendance(); }
   }
+
+
+  // ---------- Attendance (absences & tardies) ----------
+  // Stored on each student doc as attendance:[{type:"absent"|"tardy", date:"YYYY-MM-DD", note}]
+  // One status per student per day. Anyone without an entry for a day counts as present.
+  var attState = { date: todayStr() };
+  function attList(s){
+    return (s.attendance || []).filter(function(e){ return e && (e.type === "absent" || e.type === "tardy") && e.date; });
+  }
+  function attCounts(s){
+    var a = 0, t = 0;
+    attList(s).forEach(function(e){ if(e.type === "absent") a++; else t++; });
+    return { a:a, t:t };
+  }
+  function attOn(s, date){
+    var l = attList(s);
+    for(var i=0;i<l.length;i++){ if(l[i].date === date) return l[i]; }
+    return null;
+  }
+  // type = "absent" | "tardy" | null (null = mark present / clear that day)
+  function setAttendance(s, date, type, note){
+    var prev = attOn(s, date);
+    s.attendance = (s.attendance || []).filter(function(e){ return !(e && e.date === date); });
+    if(type) s.attendance.push({ type:type, date:date, note:(note != null ? note : (prev && prev.note) || "") });
+  }
+  function attLabel(t){ return t === "absent" ? "Absent" : "Tardy"; }
+  function fmtDateLong(iso){
+    if(!iso) return "";
+    var p = iso.split("-");
+    return new Date(Number(p[0]), Number(p[1])-1, Number(p[2])).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});
+  }
+  function shiftDate(iso, days){
+    var p = iso.split("-");
+    var d = new Date(Number(p[0]), Number(p[1])-1, Number(p[2]) + days);
+    return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  }
+  function attSumHtml(s){
+    var c = attCounts(s);
+    if(!c.a && !c.t) return '<button class="att-sum none" data-open-student="'+escapeHtml(s.id)+'" title="Open attendance">—</button>';
+    return '<button class="att-sum" data-open-student="'+escapeHtml(s.id)+'" title="Open attendance">'
+      + '<span class="a">'+c.a+' A</span> · <span class="t">'+c.t+' T</span></button>';
+  }
+
+  function openAttendance(){
+    if(!attState.date) attState.date = todayStr();
+    renderAttendance();
+    $("#attOverlay").hidden = false;
+  }
+  function closeAttendance(){ $("#attOverlay").hidden = true; }
+
+  function renderAttendance(){
+    var teacherName = TEACHERS.filter(function(t){ return t.id===state.teacher; })[0].name;
+    $("#attSub").textContent = teacherName + " · Period " + state.period;
+    if($("#attDate").value !== attState.date) $("#attDate").value = attState.date;
+    var absent = [], tardy = [];
+    state.students.forEach(function(s){
+      var e = attOn(s, attState.date);
+      if(e) (e.type === "absent" ? absent : tardy).push(s.name);
+    });
+    var sum = $("#attSummary");
+    if(!state.students.length){ sum.innerHTML = "No students in this class yet."; }
+    else if(!absent.length && !tardy.length){
+      sum.innerHTML = '<b>'+escapeHtml(fmtDateLong(attState.date))+'</b>: everyone marked present.';
+    } else {
+      sum.innerHTML = '<b>'+escapeHtml(fmtDateLong(attState.date))+'</b> · '
+        + '<b class="a">'+absent.length+' absent</b>'+(absent.length ? ' ('+escapeHtml(absent.join(", "))+')' : '')
+        + ' · <b class="t">'+tardy.length+' tardy</b>'+(tardy.length ? ' ('+escapeHtml(tardy.join(", "))+')' : '');
+    }
+    var list = $("#attList");
+    if(!state.students.length){ list.innerHTML = '<p class="no-history">No students in this class yet.</p>'; return; }
+    list.innerHTML = state.students.map(function(s){
+      var e = attOn(s, attState.date), c = attCounts(s), cur = e ? e.type : "";
+      return '<div class="ce-row"><span class="ce-name">'+escapeHtml(s.name)+'</span>'
+        + '<span class="ce-info">'+(c.a||c.t ? '('+c.a+' A · '+c.t+' T)' : '')+'</span>'
+        + '<span class="ce-btns">'
+          + '<button class="att-btn absent'+(cur==="absent"?' on':'')+'" data-att-set="absent" data-sid="'+escapeHtml(s.id)+'" type="button" aria-pressed="'+(cur==="absent")+'">Absent</button>'
+          + '<button class="att-btn tardy'+(cur==="tardy"?' on':'')+'" data-att-set="tardy" data-sid="'+escapeHtml(s.id)+'" type="button" aria-pressed="'+(cur==="tardy")+'">Tardy</button>'
+        + '</span></div>';
+    }).join("");
+  }
+
+  function toggleAttendance(sid, type){
+    var s = findStudent(sid);
+    if(!s) return;
+    var cur = attOn(s, attState.date);
+    setAttendance(s, attState.date, (cur && cur.type === type) ? null : type);
+    saveStudent(s);
+    refreshClass();
+  }
+  // Seating-chart attendance: present -> absent -> tardy -> present
+  function cycleAttendance(sid){
+    var s = findStudent(sid);
+    if(!s) return;
+    var cur = attOn(s, attState.date);
+    setAttendance(s, attState.date, !cur ? "absent" : (cur.type === "absent" ? "tardy" : null));
+    saveStudent(s);
+    refreshClass();
+  }
+  function setAttDate(v){
+    attState.date = v || todayStr();
+    renderAttendance();
+    renderSeating();
+  }
+
+  $("#attBtn").addEventListener("click", openAttendance);
+  $("#attCloseBtn").addEventListener("click", closeAttendance);
+  $("#attOverlay").addEventListener("click", function(e){ if(e.target === e.currentTarget) closeAttendance(); });
+  $("#attDate").addEventListener("change", function(){ setAttDate($("#attDate").value); });
+  $("#attPrev").addEventListener("click", function(){ setAttDate(shiftDate(attState.date, -1)); });
+  $("#attNext").addEventListener("click", function(){ setAttDate(shiftDate(attState.date, 1)); });
+  $("#attToday").addEventListener("click", function(){ setAttDate(todayStr()); });
+  $("#attList").addEventListener("click", function(e){
+    var btn = e.target.closest("button[data-att-set]");
+    if(btn) toggleAttendance(btn.getAttribute("data-sid"), btn.getAttribute("data-att-set"));
+  });
+  $("#seatAttDate").addEventListener("change", function(){ setAttDate($("#seatAttDate").value); });
 
   // ---------- Seating chart ----------
   // 8 columns (W E S T W O O D, letters on the bottom row) x 5 rows. A student's spot is
   // stored on their own doc as seat:"col-row" (col 0-7 left to right, row 0-4 top to bottom).
   var SEAT_LETTERS = ["W","E","S","T","W","O","O","D"], SEAT_ROWS = 5;
-  var seatUI = { edit:false, pick:null };
+  var seatUI = { edit:false, pick:null, att:false };
   function validSeat(k){ return typeof k === "string" && /^[0-7]-[0-4]$/.test(k); }
   function seatMap(){
     var byKey = {}, unseated = [];
@@ -1106,6 +1289,11 @@
     $("#seatPrintTitle").textContent = teacherName + " · Period " + state.period + " · Seating chart";
     $("#seatSub").textContent = nSeated + " seated" + (m.unseated.length ? " · " + m.unseated.length + " not seated yet" : "");
     $("#seatEditBtn").textContent = seatUI.edit ? "Done" : "Edit seats";
+    $("#seatAttBtn").textContent = seatUI.att ? "Done" : "Take attendance";
+    $("#seatAttBtn").classList.toggle("primary", !!seatUI.att);
+    $("#seatAttDate").hidden = !seatUI.att;
+    if(seatUI.att && $("#seatAttDate").value !== attState.date) $("#seatAttDate").value = attState.date;
+    $("#seatEditBtn").hidden = !!seatUI.att;
     $("#seatAutoBtn").hidden = !seatUI.edit;
     $("#seatAutoBtn").disabled = !m.unseated.length;
     $("#seatClearBtn").hidden = !seatUI.edit;
@@ -1114,7 +1302,8 @@
     $("#seatUnseatBtn").hidden = !(seatUI.edit && picked && validSeat(picked.seat));
 
     var hint = $("#seatHint");
-    if(!seatUI.edit){ hint.className = "seat-hint"; hint.textContent = "Tap a student to open their page. Use “Edit seats” to place or move students."; }
+    if(seatUI.att){ hint.className = "seat-hint active"; hint.textContent = "Attendance for " + fmtDateLong(attState.date) + ": tap a student once for absent, twice for tardy, three times to clear. Anyone you don't tap counts as present."; }
+    else if(!seatUI.edit){ hint.className = "seat-hint"; hint.textContent = "Tap a student to open their page. Use “Edit seats” to place or move students."; }
     else if(picked){ hint.className = "seat-hint active"; hint.textContent = "Now tap a square for " + picked.name + " (tapping someone else's square swaps them)."; }
     else { hint.className = "seat-hint"; hint.textContent = "Tap a student (in the chart or the list below), then tap the square they should move to."; }
 
@@ -1122,9 +1311,11 @@
     for(var r=0; r<SEAT_ROWS; r++){
       for(var c=0; c<SEAT_LETTERS.length; c++){
         var key = c + "-" + r, occ = m.byKey[key];
-        var cls = "seat-cell" + (occ ? " occupied" : "") + (occ && occ.id===seatUI.pick ? " picked" : "") + (seatUI.edit && picked ? " target" : "");
+        var ae = (seatUI.att && occ) ? attOn(occ, attState.date) : null;
+        var cls = "seat-cell" + (occ ? " occupied" : "") + (occ && occ.id===seatUI.pick ? " picked" : "") + (seatUI.edit && picked ? " target" : "") + (ae ? " att-" + ae.type : "");
         html += '<button class="'+cls+'" data-seat="'+key+'" type="button" aria-label="'+escapeHtml(SEAT_LETTERS[c]+" column "+(c+1)+", row "+(r+1)+(occ ? ": "+occ.name : ": empty"))+'">'
           + (occ ? escapeHtml(occ.name) : "")
+          + (ae ? '<span class="seat-flag">'+(ae.type === "absent" ? "ABSENT" : "TARDY")+'</span>' : "")
           + (r === SEAT_ROWS-1 ? '<span class="seat-letter">'+SEAT_LETTERS[c]+'</span>' : "")
           + '</button>';
       }
@@ -1135,7 +1326,8 @@
     if(!m.unseated.length){ un.innerHTML = state.students.length ? "" : '<span class="no-history">No students in this class yet.</span>'; }
     else {
       un.innerHTML = '<span class="inline-lab">Not seated</span>' + m.unseated.map(function(s){
-        return '<button class="seat-chip'+(s.id===seatUI.pick?' picked':'')+'" data-unseated="'+escapeHtml(s.id)+'" type="button">'+escapeHtml(s.name)+'</button>';
+        var ue = seatUI.att ? attOn(s, attState.date) : null;
+        return '<button class="seat-chip'+(s.id===seatUI.pick?' picked':'')+(ue ? ' att-'+ue.type : '')+'" data-unseated="'+escapeHtml(s.id)+'" type="button">'+escapeHtml(s.name)+'</button>';
       }).join("");
     }
   }
@@ -1158,6 +1350,7 @@
     if(btn.hasAttribute("data-seat")){
       var key = btn.getAttribute("data-seat");
       var occ = seatMap().byKey[key];
+      if(seatUI.att){ if(occ) cycleAttendance(occ.id); return; }
       if(!seatUI.edit){ if(occ) openStudentDrawer(occ.id); return; }
       if(seatUI.pick){
         if(occ && occ.id === seatUI.pick){ seatUI.pick = null; }
@@ -1166,12 +1359,18 @@
       renderSeating();
     } else if(btn.hasAttribute("data-unseated")){
       var sid = btn.getAttribute("data-unseated");
+      if(seatUI.att){ cycleAttendance(sid); return; }
       if(!seatUI.edit){ openStudentDrawer(sid); return; }
       seatUI.pick = seatUI.pick === sid ? null : sid;
       renderSeating();
     }
   });
   $("#seatEditBtn").addEventListener("click", function(){ seatUI.edit = !seatUI.edit; seatUI.pick = null; renderSeating(); });
+  $("#seatAttBtn").addEventListener("click", function(){
+    seatUI.att = !seatUI.att; seatUI.edit = false; seatUI.pick = null;
+    if(seatUI.att) attState.date = todayStr();
+    renderSeating();
+  });
   $("#seatUnseatBtn").addEventListener("click", function(){
     var s = seatUI.pick ? findStudent(seatUI.pick) : null;
     if(!s) return;
@@ -1271,13 +1470,57 @@
   }
   function assignmentOptionLabel(a){ return a.name + " · " + fmtDate(a.date); }
 
+  function attendanceBlockHtml(s){
+    var c = attCounts(s);
+    var items = (s.attendance || []).map(function(e, idx){ return {e:e, idx:idx}; })
+      .filter(function(it){ return it.e && (it.e.type === "absent" || it.e.type === "tardy") && it.e.date; })
+      .sort(function(a,b){ return a.e.date < b.e.date ? 1 : a.e.date > b.e.date ? -1 : 0; });
+    var hist = items.length ? '<ul class="history-list">' + items.map(function(it){
+      return '<li><span class="chip chip-'+it.e.type+'">'+attLabel(it.e.type)+'</span>'
+        + '<span class="hist-date">'+escapeHtml(fmtDateLong(it.e.date))+'</span>'
+        + '<span class="hist-note">'+escapeHtml(it.e.note || "")+'</span>'
+        + '<button class="hist-remove" data-att-del="'+it.idx+'" title="Remove this entry">✕</button></li>';
+    }).join("") + '</ul>' : '<p class="no-history">No absences or tardies logged.</p>';
+    return '<div class="std-block att-block">'
+      + '<div class="std-head-row"><span class="std-num">Attendance</span><h3>Absences &amp; tardies</h3></div>'
+      + '<div class="att-totals"><b>'+c.a+'</b> absence'+(c.a===1?"":"s")+' · <b>'+c.t+'</b> tard'+(c.t===1?"y":"ies")+'</div>'
+      + '<div class="entry-row">'
+        + '<input type="text" class="note-input" data-att-note placeholder="Optional note (e.g. sick, appointment)">'
+        + '<input type="date" class="date-input" data-att-date value="'+todayStr()+'">'
+      + '</div>'
+      + '<div class="mark-buttons">'
+        + '<button class="mark-btn" style="background:var(--lvl1); color:#fff; border-color:var(--lvl1);" data-att-add="absent" type="button">＋ Absent</button>'
+        + '<button class="mark-btn" style="background:var(--lvl2); color:#fff; border-color:var(--lvl2);" data-att-add="tardy" type="button">＋ Tardy</button>'
+      + '</div>'
+      + '<div class="std-history">'+hist+'</div></div>';
+  }
+  function logAttendance(studentId, type){
+    var s = findStudent(studentId);
+    if(!s) return;
+    var noteInput = $("[data-att-note]"), dateInput = $("[data-att-date]");
+    var date = (dateInput && dateInput.value) ? dateInput.value : todayStr();
+    setAttendance(s, date, type, noteInput ? noteInput.value.trim() : "");
+    saveStudent(s);
+    toast(attLabel(type)+" logged for "+s.name+" — "+fmtDateLong(date)+".");
+    if(noteInput) noteInput.value = "";
+    refreshClass();
+  }
+  function removeAttendance(studentId, idx){
+    var s = findStudent(studentId);
+    if(!s || !s.attendance) return;
+    s.attendance.splice(idx, 1);
+    saveStudent(s);
+    toast("Entry removed.");
+    refreshClass();
+  }
+
   function renderStudentDrawer(s){
     var teacherName = TEACHERS.filter(function(t){ return t.id===s.teacher; })[0].name;
     $("#studentName").textContent = s.name;
     $("#studentSub").textContent = teacherName + " · Period " + s.period + (s.grade ? " · " + s.grade + "th grade" : "");
     var body = $("#studentBody");
     var scrollTop = body.scrollTop;
-    body.innerHTML = STANDARDS.map(function(std){
+    body.innerHTML = attendanceBlockHtml(s) + STANDARDS.map(function(std){
       var arr = (s.scores && s.scores[std.id]) || [];
       var lvl = currentLevel(s, std.id);
       var isMarks = std.id === "4";
@@ -1390,6 +1633,12 @@
         + '<div class="std-history">' + historyHtml + '</div></div>';
     }).join("");
 
+    $all("[data-att-add]", body).forEach(function(btn){
+      btn.addEventListener("click", function(){ logAttendance(s.id, btn.getAttribute("data-att-add")); });
+    });
+    $all("[data-att-del]", body).forEach(function(btn){
+      btn.addEventListener("click", function(){ removeAttendance(s.id, Number(btn.getAttribute("data-att-del"))); });
+    });
     $all("[data-log-std]", body).forEach(function(btn){
       btn.addEventListener("click", function(){
         logEntry(s.id, btn.getAttribute("data-log-std"), Number(btn.getAttribute("data-score")));
@@ -1896,6 +2145,7 @@
       if(!$("#planEditOverlay").hidden) closePlanEdit();
       else if(!$("#studentOverlay").hidden) closeStudentDrawer();
       else if(!$("#classEntryOverlay").hidden) closeClassEntry();
+      else if(!$("#attOverlay").hidden) closeAttendance();
       else if(!$("#rosterOverlay").hidden) closeRosterDrawer();
       else if(!$("#rubricOverlay").hidden) $("#rubricOverlay").hidden = true;
     }
