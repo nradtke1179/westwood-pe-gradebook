@@ -375,7 +375,7 @@
   .seat-hint{margin:0; padding:10px 20px; font-size:13px; color:var(--ink-soft); background:var(--panel-alt); border-bottom:1px solid var(--border);}
   .seat-hint.active{color:var(--gold-deep); font-weight:600;}
   .seat-scroll{overflow-x:auto; padding:18px 20px 8px;}
-  .seat-grid{display:grid; grid-template-columns:repeat(8,minmax(76px,1fr)); gap:1px; background:var(--ink); border:2px solid var(--ink); min-width:640px;}
+  .seat-grid{display:grid; grid-template-columns:repeat(var(--seat-cols,8),minmax(76px,1fr)); gap:1px; background:var(--ink); border:2px solid var(--ink); min-width:calc(var(--seat-cols,8) * 80px);}
   .seat-cell{position:relative; min-height:76px; background:var(--panel); border:none; border-radius:0; padding:6px 4px 20px;
     display:flex; align-items:center; justify-content:center; text-align:center; font-size:12.5px; font-weight:600;
     color:var(--ink); line-height:1.2; overflow-wrap:anywhere; font-family:inherit;}
@@ -1266,11 +1266,21 @@
   $("#seatAttDate").addEventListener("change", function(){ setAttDate($("#seatAttDate").value); });
 
   // ---------- Seating chart ----------
-  // 8 columns (W E S T W O O D, letters on the bottom row) x 5 rows. A student's spot is
-  // stored on their own doc as seat:"col-row" (col 0-7 left to right, row 0-4 top to bottom).
-  var SEAT_LETTERS = ["W","E","S","T","W","O","O","D"], SEAT_ROWS = 5;
+  // 8 columns for Mr. Radtke (W E S T W O O D) or 10 for Mrs. Perkins, letters on the bottom row, x 5 rows. A student's spot is
+  // stored on their own doc as seat:"col-row" (col 0-7, or 0-9 for Perkins, left to right, row 0-4 top to bottom).
+  var SEAT_ROWS = 5;
+  // Each teacher has their own column letters (and so their own number of columns):
+  // Mr. Radtke = W E S T W O O D (8), Mrs. Perkins = W O L V E R I N E S (10).
+  var SEAT_LETTERS_BY_TEACHER = {
+    radtke:  ["W","E","S","T","W","O","O","D"],
+    perkins: ["W","O","L","V","E","R","I","N","E","S"]
+  };
+  function seatLetters(){ return SEAT_LETTERS_BY_TEACHER[state.teacher] || SEAT_LETTERS_BY_TEACHER.radtke; }
   var seatUI = { edit:false, pick:null, att:false };
-  function validSeat(k){ return typeof k === "string" && /^[0-7]-[0-4]$/.test(k); }
+  function validSeat(k){
+    if(typeof k !== "string" || !/^\d-[0-4]$/.test(k)) return false;
+    return Number(k.charAt(0)) < seatLetters().length;
+  }
   function seatMap(){
     var byKey = {}, unseated = [];
     state.students.forEach(function(s){
@@ -1281,6 +1291,8 @@
   function findStudent(id){ return state.allStudents.filter(function(x){ return x.id===id; })[0] || null; }
 
   function renderSeating(){
+    var SEAT_LETTERS = seatLetters();
+    $("#seatGrid").style.setProperty("--seat-cols", SEAT_LETTERS.length);
     var teacherName = TEACHERS.filter(function(t){ return t.id===state.teacher; })[0].name;
     var m = seatMap();
     if(seatUI.pick && !state.students.some(function(s){ return s.id===seatUI.pick; })) seatUI.pick = null;
@@ -1379,6 +1391,7 @@
     renderSeating();
   });
   $("#seatAutoBtn").addEventListener("click", function(){
+    var SEAT_LETTERS = seatLetters();
     var m = seatMap();
     var queue = m.unseated.slice(), changed = [];
     // fill column by column (W, E, S, T...), starting from the letter row and working up
@@ -1390,7 +1403,7 @@
       }
     }
     if(changed.length){ saveStudentsBatch(changed); toast("Seated " + changed.length + " student" + (changed.length===1?"":"s") + "."); }
-    if(queue.length) toast("All 40 squares are full — " + queue.length + " still not seated.");
+    if(queue.length) toast("All " + (SEAT_LETTERS.length * SEAT_ROWS) + " squares are full — " + queue.length + " still not seated.");
     seatUI.pick = null;
     renderSeating();
   });
