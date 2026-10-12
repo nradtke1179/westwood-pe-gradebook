@@ -1527,6 +1527,44 @@
     refreshClass();
   }
 
+  function moveBlockHtml(s){
+    return '<div class="std-block">'
+      + '<div class="std-head-row"><span class="std-num">Class change</span><h3>Move to another class</h3></div>'
+      + '<p class="std-full">Use this when a student switches classes. Every score, mark, fitness result and absence goes with them.</p>'
+      + '<div class="entry-row">'
+        + '<select class="field" data-move-teacher aria-label="Teacher">'
+          + TEACHERS.map(function(t){ return '<option value="'+t.id+'"'+(t.id===s.teacher?' selected':'')+'>'+escapeHtml(t.name)+'</option>'; }).join("")
+        + '</select>'
+        + '<select class="field" data-move-period aria-label="Period">'
+          + PERIODS.map(function(p){ return '<option value="'+p+'"'+(p===s.period?' selected':'')+'>Period '+p+'</option>'; }).join("")
+        + '</select>'
+      + '</div>'
+      + '<button class="btn" data-move-go type="button">Move student</button>'
+      + '</div>';
+  }
+  function moveStudent(id, teacherId, period){
+    var s = findStudent(id);
+    if(!s) return;
+    if(s.teacher === teacherId && s.period === period){ toast(s.name + " is already in that class."); return; }
+    var t = TEACHERS.filter(function(x){ return x.id === teacherId; })[0];
+    if(!t) return;
+    if(!confirm('Move "'+s.name+'" to '+t.name+' · Period '+period+'? All of their scores, marks and attendance move with them.')) return;
+    var crossTeacher = s.teacher !== teacherId;
+    s.teacher = teacherId;
+    s.period = period;
+    s.seat = null; // seats belong to the old class's chart
+    if(crossTeacher && s.scores){
+      // Assignments belong to one teacher, so un-link them; the score and its assignment name stay in the history.
+      Object.keys(s.scores).forEach(function(k){
+        (s.scores[k] || []).forEach(function(e){ if(e && e.aid) delete e.aid; });
+      });
+    }
+    saveStudent(s);
+    if(crossTeacher){ state.allStudents = state.allStudents.filter(function(x){ return x.id !== id; }); }
+    toast("Moved " + s.name + " to " + t.name + " · Period " + period + ".");
+    refreshClass();
+  }
+
   function renderStudentDrawer(s){
     var teacherName = TEACHERS.filter(function(t){ return t.id===s.teacher; })[0].name;
     $("#studentName").textContent = s.name;
@@ -1644,8 +1682,13 @@
 
       return '<div class="std-block" data-block-std="'+std.id+'">' + head + currentHtml + entryHtml
         + '<div class="std-history">' + historyHtml + '</div></div>';
-    }).join("");
+    }).join("") + moveBlockHtml(s);
 
+    $all("[data-move-go]", body).forEach(function(btn){
+      btn.addEventListener("click", function(){
+        moveStudent(s.id, $("[data-move-teacher]", body).value, $("[data-move-period]", body).value);
+      });
+    });
     $all("[data-att-add]", body).forEach(function(btn){
       btn.addEventListener("click", function(){ logAttendance(s.id, btn.getAttribute("data-att-add")); });
     });
