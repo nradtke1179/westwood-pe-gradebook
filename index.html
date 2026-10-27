@@ -384,15 +384,16 @@
   .seat-cell.picked{box-shadow:inset 0 0 0 3px var(--gold-deep); background:var(--panel-alt);}
   .seat-cell.target:not(.occupied):hover{background:var(--panel-alt);}
   .seat-letter{position:absolute; bottom:4px; left:0; right:0; font-size:12px; font-weight:700; color:var(--ink); font-family:var(--font-display); letter-spacing:.04em;}
-  .seat-cell.has-checks{flex-direction:column; justify-content:flex-start; gap:4px; min-height:96px; padding:6px 4px 20px; cursor:default;}
+  .seat-cell.has-checks{flex-direction:column; justify-content:flex-start; gap:2px; min-height:76px; padding:6px 2px 3px; cursor:default;}
+  .seat-cell.has-checks.last-row{padding-bottom:20px;}
   .seat-name{background:none; border:none; padding:2px 2px; font:inherit; color:inherit; text-align:center; cursor:pointer; width:100%; overflow-wrap:anywhere;}
   .seat-cell.is-absent{background:var(--panel-alt);}
   .seat-cell.is-absent .seat-name{opacity:.55; text-decoration:line-through;}
   .seat-cell.is-tardy{box-shadow:inset 0 4px 0 var(--lvl2);}
-  .seat-checks{display:grid; grid-template-columns:1fr 1fr; gap:2px 4px; width:100%; margin-top:auto;}
-  .seat-chk{display:flex; align-items:center; gap:3px; font-size:10.5px; font-weight:700; color:var(--ink-soft); letter-spacing:.02em; padding:3px 2px; border-radius:5px; cursor:pointer; user-select:none; text-align:left;}
+  .seat-checks{display:flex; justify-content:space-around; align-items:center; width:100%; margin-top:auto;}
+  .seat-chk{display:flex; align-items:center; gap:1px; font-size:11.5px; font-weight:700; color:var(--ink-soft); padding:3px 2px; border-radius:5px; cursor:pointer; user-select:none; text-align:left;}
   .seat-chk:hover{background:var(--panel-alt);}
-  .seat-chk input{margin:0; width:15px; height:15px; accent-color:var(--gold-deep); cursor:pointer; flex:none;}
+  .seat-chk input{margin:0; width:14px; height:14px; accent-color:var(--gold-deep); cursor:pointer; flex:none;}
   .seat-chk.on{color:var(--ink);}
   .seat-date-wrap{display:flex; align-items:center; gap:6px;}
   .seat-date-wrap .date-input{width:auto;}
@@ -417,6 +418,7 @@
     body.print-seating .seat-checks, body.print-seating .seat-date-wrap{display:none !important;}
     body.print-seating .seat-cell.is-absent .seat-name{opacity:1; text-decoration:none;}
     body.print-seating .seat-cell.has-checks{min-height:110px; justify-content:center;}
+    body.print-seating .seat-cell.has-checks.last-row{padding-bottom:20px;}
   }
 
   @media (max-width:640px){
@@ -1165,8 +1167,8 @@
     state.students.forEach(function(s){ if(attHas(s,"absent",date)) a++; else if(attHas(s,"tardy",date)) t++; });
     return {absent:a, tardy:t};
   }
-  var SEAT_CHECKS = [ {id:"absent",label:"Absent",short:"Abs"}, {id:"tardy",label:"Tardy",short:"Tardy"},
-                      {id:"uniform",label:"Uniform",short:"Uni"}, {id:"behavior",label:"Behavior",short:"Beh"} ];
+  var SEAT_CHECKS = [ {id:"absent",label:"Absent",short:"A"}, {id:"tardy",label:"Tardy",short:"T"},
+                      {id:"uniform",label:"Uniform",short:"U"}, {id:"behavior",label:"Behavior",short:"B"} ];
 
   function renderSeating(){
     if(!seatUI.touched || !seatUI.date) seatUI.date = todayStr();
@@ -1192,7 +1194,7 @@
     $("#seatUnseatBtn").hidden = !(seatUI.edit && picked && validSeat(picked.seat));
 
     var hint = $("#seatHint");
-    if(!seatUI.edit){ hint.className = "seat-hint"; hint.textContent = "Tick Abs / Tardy / Uni / Beh for the date above. Tap a name to open that student’s page. Use “Edit seats” to place or move students."; }
+    if(!seatUI.edit){ hint.className = "seat-hint"; hint.textContent = "Tick A (absent), T (tardy), U (uniform), B (behavior) for the date above. Tap a name to open that student’s page. Use “Edit seats” to place or move students."; }
     else if(picked){ hint.className = "seat-hint active"; hint.textContent = "Now tap a square for " + picked.name + " (tapping someone else's square swaps them)."; }
     else { hint.className = "seat-hint"; hint.textContent = "Tap a student (in the chart or the list below), then tap the square they should move to."; }
 
@@ -1204,7 +1206,7 @@
         var letter = (r === SEAT_ROWS-1 ? '<span class="seat-letter">'+SEAT_LETTERS[c]+'</span>' : "");
         if(occ && !seatUI.edit){
           var isAbs = attHas(occ, "absent", seatUI.date), isTardy = attHas(occ, "tardy", seatUI.date);
-          html += '<div class="'+cls+' has-checks'+(isAbs?' is-absent':'')+(isTardy?' is-tardy':'')+'" data-seat="'+key+'">'
+          html += '<div class="'+cls+' has-checks'+(r === SEAT_ROWS-1 ? ' last-row' : '')+(isAbs?' is-absent':'')+(isTardy?' is-tardy':'')+'" data-seat="'+key+'">'
             + '<button type="button" class="seat-name" data-seat-name="'+key+'" title="Open '+escapeHtml(occ.name)+'">'+escapeHtml(occ.name)+'</button>'
             + '<div class="seat-checks">' + SEAT_CHECKS.map(function(k){
                 var on = (k.id==="absent" || k.id==="tardy") ? attHas(occ, k.id, seatUI.date) : markCount(occ, k.id, seatUI.date) > 0;
