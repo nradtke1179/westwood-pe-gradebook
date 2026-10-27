@@ -223,6 +223,10 @@
   .history-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; max-height:150px; overflow-y:auto;}
   .history-list li{display:flex; align-items:center; gap:8px; font-size:12.5px; padding:4px 2px; border-bottom:1px dotted var(--border);}
   .hist-date{color:var(--ink-soft); min-width:72px;}
+  .hist-note-input{flex:1; min-width:0; font:inherit; font-size:12.5px; font-style:italic; color:var(--ink); background:transparent; border:1px solid transparent; border-bottom:1px dashed var(--border); border-radius:5px; padding:3px 5px;}
+  .hist-note-input:hover{border-color:var(--border);}
+  .hist-note-input:focus{outline:none; border:1px solid var(--gold-deep); background:var(--panel); font-style:normal;}
+  .hist-note-input::placeholder{color:var(--ink-soft); opacity:.75;}
   .hist-note{flex:1; color:var(--ink-soft); font-style:italic; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .hist-remove{background:transparent; border:none; color:var(--ink-soft); font-size:13px; padding:2px 5px; border-radius:5px;}
   .hist-remove:hover{color:var(--lvl1); background:var(--panel-alt);}
@@ -1386,7 +1390,8 @@
       + '<div class="std-history">' + (list.length
           ? '<ul class="history-list">' + list.map(function(i){
               return '<li><span class="chip chip-'+i.a.type+'">'+(i.a.type==="absent"?"Absent":"Tardy")+'</span>'
-                + '<span class="hist-date">'+fmtDate(i.a.date)+'</span><span class="hist-note"></span>'
+                + '<span class="hist-date">'+fmtDate(i.a.date)+'</span>'
+                + '<input type="text" class="hist-note-input" data-note-att="'+i.idx+'" maxlength="300" placeholder="Add a note (why?)" value="'+escapeHtml(i.a.note||"")+'">'
                 + '<button class="hist-remove" data-del-att="'+i.idx+'" title="Remove this entry">✕</button></li>';
             }).join("") + '</ul>'
           : '<p class="no-history">No absences or tardies logged yet.</p>') + '</div></div>';
@@ -1422,7 +1427,9 @@
           var assign = e.label ? '<span class="chip chip-assign" title="'+escapeHtml(e.label)+'">'+escapeHtml(e.label)+'</span>' : '';
           return '<li>' + lead + assign
             + '<span class="hist-date">'+fmtDate(e.date)+'</span>'
-            + '<span class="hist-note">'+escapeHtml(noteText)+'</span>'
+            + (e.type
+                ? '<input type="text" class="hist-note-input" data-note-std="'+std.id+'" data-note-idx="'+item.idx+'" maxlength="300" placeholder="Add a note (why?)" value="'+escapeHtml(e.note||"")+'">'
+                : '<span class="hist-note">'+escapeHtml(noteText)+'</span>')
             + '<button class="hist-remove" data-del-std="'+std.id+'" data-del-idx="'+item.idx+'" title="Remove this entry">✕</button></li>';
         }).join("") + '</ul>'
       ) : '<p class="no-history">' + (isMarks ? 'No marks logged yet.' : isFit ? 'No fitness scores logged yet.' : 'No checks logged yet.') + '</p>';
@@ -1534,6 +1541,22 @@
         var d = opt && opt.getAttribute("data-date");
         var dateInput = $('[data-date-for="'+sel.getAttribute("data-assign-for")+'"]', body);
         if(d && dateInput) dateInput.value = d;
+      });
+    });
+    $all("[data-note-std]", body).forEach(function(inp){
+      inp.addEventListener("change", function(){
+        var st = findStudent(s.id); if(!st) return;
+        var e = st.scores && st.scores[inp.getAttribute("data-note-std")] && st.scores[inp.getAttribute("data-note-std")][Number(inp.getAttribute("data-note-idx"))];
+        if(!e) return;
+        e.note = inp.value.trim(); saveStudent(st); toast("Note saved.");
+      });
+    });
+    $all("[data-note-att]", body).forEach(function(inp){
+      inp.addEventListener("change", function(){
+        var st = findStudent(s.id); if(!st || !Array.isArray(st.attendance)) return;
+        var a = st.attendance[Number(inp.getAttribute("data-note-att"))];
+        if(!a) return;
+        a.note = inp.value.trim(); saveStudent(st); toast("Note saved.");
       });
     });
     $all("[data-del-att]", body).forEach(function(btn){
