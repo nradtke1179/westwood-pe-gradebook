@@ -95,6 +95,12 @@
     background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-lg);
     box-shadow:var(--shadow); padding:18px 22px; display:flex; flex-direction:column; gap:14px;
   }
+  .q-bar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:10px 0 2px; font-size:13px;}
+  .q-bar select{font:inherit; font-size:13px; padding:5px 8px; border:1px solid var(--border); border-radius:8px; background:var(--panel); color:var(--ink);}
+  .q-banner{margin:8px 0 0; padding:8px 12px; border-radius:var(--radius-md); background:var(--gold-soft); color:var(--gold-deep); font-size:13px; font-weight:600;}
+  .history-list li.out-q{opacity:.5;}
+  .q-existing{display:flex; flex-direction:column; gap:6px; font-size:13px;}
+  .q-existing .row{display:flex; align-items:center; gap:8px; padding:4px 0; border-bottom:1px dotted var(--border);}
   .summary-head{display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap;}
   .summary-head h2{font-size:18px;}
   .summary-head .muted{font-size:13px;}
@@ -480,6 +486,12 @@
         <h2 id="summaryTitle">Class snapshot</h2>
         <span class="muted" id="summaryMuted"></span>
       </div>
+      <div class="q-bar">
+        <label class="inline-lab" for="qSelect">Standard 4 quarter</label>
+        <select id="qSelect" hidden></select>
+        <button class="btn" id="qNewBtn" type="button">Start new quarter…</button>
+      </div>
+      <div class="q-banner" id="qBanner" hidden></div>
       <div class="meter-grid" id="meterGrid"></div>
     </section>
 
@@ -573,6 +585,24 @@
       </div>
     </section>
   </main>
+</div>
+
+<div class="modal-overlay" id="qOverlay" hidden>
+  <div class="modal" style="max-width:520px">
+    <div class="modal-head">
+      <div><h2 id="qTitle">Start a new quarter</h2><div class="plan-meta">Resets Standard 4 only</div></div>
+      <button class="drawer-close" id="qClose" type="button" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="std-full" id="qExplain"></p>
+      <div class="entry-row"><label class="inline-lab" for="qDate">New quarter starts</label><input type="date" class="date-input" id="qDate"></div>
+      <div class="q-existing" id="qExisting"></div>
+      <div class="entry-row">
+        <button class="btn primary" id="qSave" type="button">Start new quarter</button>
+        <button class="btn subtle" id="qCancel" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="modal-overlay" id="planEditOverlay" hidden>
@@ -795,8 +825,22 @@
   // computed from the total number of marks: 0-3 = 4, 4-6 = 3, 7-10 = 2, 11+ = 1.
   var MARK_TYPES = [ {id:"uniform", label:"Uniform"}, {id:"behavior", label:"Behavior"} ];
   function markLabel(t){ return t==="uniform" ? "Uniform" : t==="behavior" ? "Behavior" : String(t||""); }
-  function marksFor(student){
+  // Quarters (Standard 4 only). qState.starts = sorted start dates of each NEW quarter; Quarter 1 is everything before the
+  // first start. Marks are never deleted: a mark belongs to the quarter its date falls in. Stored per teacher in _meta/quarters_<teacher>.
+  var qState = { starts:[], view:null };
+  function qCurrent(){ return qState.starts.length; }
+  function qViewIdx(){ var v = qState.view; return (v==null || v>qCurrent()) ? qCurrent() : v; }
+  function qInRange(date, i){
+    var lo = i===0 ? "" : qState.starts[i-1], hi = i<qState.starts.length ? qState.starts[i] : "9999-99-99", d = date || "";
+    return d >= lo && d < hi;
+  }
+  function qIndexOfDate(date){ var n=0; qState.starts.forEach(function(s){ if((date||"") >= s) n++; }); return n; }
+  function marksAllFor(student){
     return ((student.scores && student.scores["4"]) || []).filter(function(e){ return e.type==="uniform" || e.type==="behavior"; });
+  }
+  function marksFor(student, qi){
+    if(qi == null) qi = qViewIdx();
+    return marksAllFor(student).filter(function(e){ return qInRange(e.date, qi); });
   }
   function levelFromMarks(n){ return n<=3 ? 4 : n<=6 ? 3 : n<=10 ? 2 : 1; }
 
@@ -949,6 +993,7 @@
   function startSync(teacherId){
     if(unsubscribeSnapshot){ unsubscribeSnapshot(); unsubscribeSnapshot = null; }
     state.assignments = [];
+    qState.starts = []; qState.view = null;
     var u1 = db.collection("students").where("teacher", "==", teacherId)
       .onSnapshot(function(snapshot){
         state.allStudents = snapshot.docs.map(function(d){
@@ -973,7 +1018,13 @@
         console.error("Assignments sync error", e);
         toast("Live sync error — check your connection.");
       });
-    unsubscribeSnapshot = function(){ u1(); u2(); };
+    var u3 = db.collection("_meta").doc("quarters_" + teacherId).onSnapshot(function(snap){
+      var d = snap.exists ? snap.data() : null;
+      qState.starts = (d && Array.isArray(d.starts) ? d.starts.slice() : []).sort();
+      if(qState.view != null && qState.view > qCurrent()) qState.view = null;
+      refreshClass();
+    }, function(e){ console.error("Quarter sync error", e); });
+    unsubscribeSnapshot = function(){ u1(); u2(); u3(); };
   }
 
   // ---------- Header ----------
@@ -1140,7 +1191,7 @@
     s.attendance = list;
   }
   function markCount(s, type, date){
-    return marksFor(s).filter(function(e){ return e.type===type && e.date===date; }).length;
+    return marksAllFor(s).filter(function(e){ return e.type===type && e.date===date; }).length;
   }
   function removeOneMark(s, type, date){
     ensureScores(s);
@@ -1161,7 +1212,7 @@
     } else {
       removeOneMark(s, type, date);
       saveStudent(s);
-      var n = marksFor(s).length, left = markCount(s, type, date);
+      var n = marksFor(s, qIndexOfDate(date)).length, left = markCount(s, type, date);
       toast(markLabel(type)+" mark removed — "+s.name+" now has "+n+" (level "+levelFromMarks(n)+")."+(left ? " "+left+" more logged this day." : ""));
     }
     refreshClass();
@@ -1318,7 +1369,68 @@
     setTimeout(function(){ window.print(); document.body.classList.remove("print-seating"); }, 50);
   });
 
+  function renderQuarterBar(){
+    var sel = $("#qSelect"), n = qCurrent();
+    sel.hidden = n === 0;
+    if(n > 0){
+      var html = "";
+      for(var i=n; i>=0; i--){
+        var from = i===0 ? "" : " — from " + fmtDate(qState.starts[i-1]);
+        html += '<option value="'+i+'"'+(i===qViewIdx()?" selected":"")+'>Quarter '+(i+1)+(i===n?" (current)":"")+from+'</option>';
+      }
+      sel.innerHTML = html;
+    }
+    var b = $("#qBanner");
+    if(n > 0 && qViewIdx() !== n){
+      var i2 = qViewIdx(), end = qState.starts[i2];
+      b.hidden = false;
+      b.textContent = "Viewing Quarter " + (i2+1) + " for Standard 4 (marks before " + fmtDate(end) + "). Saved and unchanged — new marks go to Quarter " + (n+1) + ".";
+    } else b.hidden = true;
+  }
+  function openQuarterModal(){
+    var n = qCurrent();
+    $("#qTitle").textContent = "Start Quarter " + (n+2);
+    $("#qExplain").textContent = "Standard 4 starts fresh on this date for every student in your classes. Nothing is deleted — Quarter " + (n+1) + "’s marks stay saved and you can switch back to them with the quarter menu. Standards 1–3 are not affected. A mark dated on or after the start date counts toward the new quarter.";
+    $("#qDate").value = todayStr();
+    $("#qSave").textContent = "Start Quarter " + (n+2);
+    $("#qExisting").innerHTML = n ? '<span class="inline-lab">Quarter starts so far</span>' + qState.starts.map(function(s, i){
+      return '<div class="row"><span>Quarter '+(i+2)+' began '+fmtDate(s)+'</span><button class="hist-remove" data-q-del="'+i+'" type="button" title="Undo this quarter start (marks are kept and fold back into the previous quarter)">✕ Undo</button></div>';
+    }).join("") : "";
+    $("#qOverlay").hidden = false;
+  }
+  function saveQuarters(starts, msg){
+    db.collection("_meta").doc("quarters_" + state.teacher).set({ starts: starts, updatedAt: new Date().toISOString() })
+      .then(function(){ toast(msg); })
+      .catch(function(e){ console.error(e); toast("Couldn't save — check your connection."); });
+  }
+  $("#qNewBtn").addEventListener("click", openQuarterModal);
+  $("#qClose").addEventListener("click", function(){ $("#qOverlay").hidden = true; });
+  $("#qCancel").addEventListener("click", function(){ $("#qOverlay").hidden = true; });
+  $("#qOverlay").addEventListener("click", function(e){ if(e.target === e.currentTarget) $("#qOverlay").hidden = true; });
+  $("#qSave").addEventListener("click", function(){
+    var d = $("#qDate").value;
+    if(!d){ toast("Pick the date the new quarter starts."); return; }
+    var last = qState.starts[qState.starts.length-1];
+    if(last && d <= last){ toast("That date is on or before the last quarter start (" + fmtDate(last) + ")."); return; }
+    qState.view = null;
+    saveQuarters(qState.starts.concat([d]), "Quarter " + (qCurrent()+2) + " started — Standard 4 reset. Quarter " + (qCurrent()+1) + " is saved.");
+    $("#qOverlay").hidden = true;
+  });
+  $("#qExisting").addEventListener("click", function(e){
+    var b = e.target.closest("[data-q-del]"); if(!b) return;
+    var i = Number(b.getAttribute("data-q-del"));
+    if(!confirm("Undo the start of Quarter " + (i+2) + "? Its marks fold back into the previous quarter.")) return;
+    var s = qState.starts.slice(); s.splice(i,1); qState.view = null;
+    saveQuarters(s, "Quarter start undone.");
+    $("#qOverlay").hidden = true;
+  });
+  $("#qSelect").addEventListener("change", function(){
+    var v = Number(this.value); qState.view = (v === qCurrent()) ? null : v;
+    refreshClass();
+  });
+
   function renderSummary(){
+    renderQuarterBar();
     var total = state.students.length;
     $("#summaryMuted").textContent = total + " student" + (total===1?"":"s");
     var grid = $("#meterGrid");
@@ -1425,7 +1537,9 @@
           else if(isMarks || isFit){ lead = '<span class="chip chip-old" title="Scored before marks were introduced — not counted">Earlier score '+escapeHtml(e.score)+'</span>'; }
           else { lead = '<span class="pill small lvl'+e.score+'">'+e.score+'</span>'; }
           var assign = e.label ? '<span class="chip chip-assign" title="'+escapeHtml(e.label)+'">'+escapeHtml(e.label)+'</span>' : '';
-          return '<li>' + lead + assign
+          var outQ = e.type && qState.starts.length && !qInRange(e.date, qViewIdx());
+          var qChip = (e.type && qState.starts.length) ? '<span class="chip chip-assign" title="Quarter">Q'+(qIndexOfDate(e.date)+1)+'</span>' : '';
+          return '<li'+(outQ?' class="out-q"':'')+'>' + lead + qChip + assign
             + '<span class="hist-date">'+fmtDate(e.date)+'</span>'
             + (e.type
                 ? '<input type="text" class="hist-note-input" data-note-std="'+std.id+'" data-note-idx="'+item.idx+'" maxlength="300" placeholder="Add a note (why?)" value="'+escapeHtml(e.note||"")+'">'
@@ -1484,7 +1598,7 @@
         var marks = marksFor(s);
         var nU = marks.filter(function(m){ return m.type==="uniform"; }).length;
         var nB = marks.length - nU;
-        currentHtml = '<div class="std-current">Current: <span class="pill lvl'+lvl+'">'+lvl+' · '+LEVEL_LABELS[lvl]+'</span>'
+        currentHtml = '<div class="std-current">'+(qState.starts.length ? 'Quarter '+(qViewIdx()+1)+(qViewIdx()===qCurrent()?' (current)':'')+': ' : 'Current: ')+'<span class="pill lvl'+lvl+'">'+lvl+' · '+LEVEL_LABELS[lvl]+'</span>'
           + '<span>'+marks.length+' mark'+(marks.length===1?"":"s")+' ('+nU+' uniform, '+nB+' behavior)</span></div>'
           + '<p class="no-history">0–3 marks = 4 · 4–6 = 3 · 7–10 = 2 · 11+ = 1</p>';
         entryHtml = '<div class="entry-row">'
@@ -1612,7 +1726,7 @@
     ensureScores(s);
     s.scores["4"].push({type:type, date:date || todayStr(), note:note || ""});
     saveStudent(s);
-    var n = marksFor(s).length;
+    var n = marksFor(s, qIndexOfDate(date || todayStr())).length;
     toast(markLabel(type)+" mark added — "+s.name+" now has "+n+" ("+"level "+levelFromMarks(n)+").");
   }
   function logMark(studentId, type){
@@ -1706,7 +1820,7 @@
       $("#ceListTitle").textContent = "Students — add marks";
       if(!state.students.length){ list.innerHTML = '<p class="no-history">No students in this class yet.</p>'; return; }
       list.innerHTML = state.students.map(function(s){
-        var n = marksFor(s).length, lvl = levelFromMarks(n);
+        var n = marksFor(s, qCurrent()).length, lvl = levelFromMarks(n);
         return '<div class="ce-row"><span class="ce-name">'+escapeHtml(s.name)+'</span>'
           + '<span class="ce-info">'+n+' mark'+(n===1?"":"s")+' <span class="pill small lvl'+lvl+'">'+lvl+'</span></span>'
           + '<span class="ce-btns">'
